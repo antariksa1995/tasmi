@@ -1,0 +1,2563 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Tasmi & Tahfizh Al-Quran</title>
+    
+    <link rel="preconnect" href="https://cdn.tailwindcss.com">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        
+        /* Menyembunyikan Scrollbar secara Global */
+        * { -ms-overflow-style: none; scrollbar-width: none; }
+        *::-webkit-scrollbar { display: none; }
+        
+        .glass { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+        .dt-table { width: 100%; border-collapse: collapse; }
+        .dt-table th, .dt-table td { padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: left; }
+        .dt-table th { background-color: #f9fafb; font-weight: 600; color: #374151; }
+        .dt-table tr:hover { background-color: #f3f4f6; }
+
+        /* Container Rapor agar presisi */
+        #raporContainer, #canvasCetakCapaian, .canvas-cetak {
+            background-color: white;
+            margin: 0 auto;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        @media print {
+            body * { visibility: hidden; }
+            #print-area, #print-area * { visibility: visible; }
+            #print-area { position: absolute; left: 0; top: 0; width: 100%; }
+            .no-print { display: none !important; }
+        }
+        
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #10b981; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="text-gray-800 antialiased overflow-hidden">
+
+    <script>
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbyxZe0E3kvQuMHpTo4pVGZZFd6ahJCiiu1XW8QGps90CInv0Av1E5xzFPv0VDNfCzrO/exec"; // MASUKKAN URL APP SCRIPT ANDA DI SINI
+        const SuraList = ["Al-Fatihah","Al-Baqarah","Ali 'Imran","An-Nisa'","Al-Ma'idah","Al-An'am","Al-A'raf","Al-Anfal","At-Taubah","Yunus","Hud","Yusuf","Ar-Ra'd","Ibrahim","Al-Hijr","An-Nahl","Al-Isra'","Al-Kahf","Maryam","Taha","Al-Anbiya'","Al-Hajj","Al-Mu'minun","An-Nur","Al-Furqan","Asy-Syu'ara'","An-Naml","Al-Qasas","Al-'Ankabut","Ar-Rum","Luqman","As-Sajdah","Al-Ahzab","Saba'","Fatir","Yasin","As-Saffat","Sad","Az-Zumar","Ghafir","Fussilat","Asy-Syura","Az-Zukhruf","Ad-Dukhan","Al-Jasiyah","Al-Ahqaf","Muhammad","Al-Fath","Al-Hujurat","Qaf","Az-Zariyat","At-Tur","An-Najm","Al-Qamar","Ar-Rahman","Al-Waqi'ah","Al-Hadid","Al-Mujadilah","Al-Hasyr","Al-Mumtahanah","As-Saff","Al-Jumu'ah","Al-Munafiqun","At-Tagabun","At-Talaq","At-Tahrim","Al-Mulk","Al-Qalam","Al-Haqqah","Al-Ma'arij","Nuh","Al-Jinn","Al-Muzzammil","Al-Muddassir","Al-Qiyamah","Al-Insan","Al-Mursalat","An-Naba'","An-Nazi'at","'Abasa","At-Takwir","Al-Infitar","Al-Mutaffifin","Al-Insyiqaq","Al-Buruj","At-Tariq","Al-A'la","Al-Gasyiyah","Al-Fajr","Al-Balad","Asy-Syams","Al-Lail","Ad-Duha","Asy-Syarh","At-Tin","Al-'Alaq","Al-Qadr","Al-Bayyinah","Az-Zalzalah","Al-'Adiyat","Al-Qari'ah","At-Takasur","Al-'Asr","Al-Humazah","Al-Fil","Quraisy","Al-Ma'un","Al-Kausar","Al-Kafirun","An-Nasr","Al-Lahab","Al-Ikhlas","Al-Falaq","An-Nas"];
+        const getJuzPages = (juz) => (juz >= 1 && juz <= 29) ? 20 : (juz == 30 ? 23 : 0);
+    </script>
+
+    <div id="loadingScreen" class="fixed inset-0 bg-white z-[9999] flex flex-col items-center justify-center hidden">
+        <div class="loader mb-4"></div>
+        <h2 class="text-xl font-semibold text-gray-700" id="loadingText">Memuat Aplikasi...</h2>
+    </div>
+
+    <div id="appContainer" class="flex h-[100dvh] w-full hidden">
+        <div id="sidebarBackdrop" class="fixed inset-0 bg-black bg-opacity-50 z-30 hidden md:hidden" onclick="toggleSidebar()"></div>
+        
+        <aside id="sidebar" class="w-64 bg-emerald-800 text-white flex flex-col transition-all duration-300 transform -translate-x-full md:translate-x-0 fixed md:relative z-40 h-full">
+            <div class="p-5 flex items-center justify-between border-b border-emerald-700 shrink-0">
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-quran text-2xl text-emerald-300"></i>
+                    <span id="appNameDisplay" class="font-bold text-lg tracking-wide">e-Tasmi</span>
+                </div>
+                <button onclick="toggleSidebar()" class="md:hidden text-white p-2"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-4 flex flex-col gap-2 overflow-y-auto flex-1" id="menuContainer"></div>
+            <div class="p-4 border-t border-emerald-700 shrink-0 pb-8 md:pb-4">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center font-bold shrink-0" id="userInitial">A</div>
+                    <div class="overflow-hidden">
+                        <div class="text-sm font-semibold truncate w-full" id="userNameDisplay">Admin</div>
+                        <div class="text-xs text-emerald-300" id="userRoleDisplay">Super Admin</div>
+                    </div>
+                </div>
+                <button onclick="logout()" class="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded text-sm font-medium transition flex items-center justify-center gap-2">
+                    <i class="fas fa-sign-out-alt"></i> Keluar
+                </button>
+            </div>
+        </aside>
+
+        <main class="flex-1 flex flex-col h-full bg-gray-50 relative overflow-hidden">
+            <header class="bg-white shadow-sm h-16 flex items-center justify-between px-4 lg:px-8 z-30">
+                <button onclick="toggleSidebar()" class="md:hidden text-gray-600 hover:text-emerald-600 text-xl"><i class="fas fa-bars"></i></button>
+                <h1 class="text-xl font-semibold text-gray-800 truncate" id="pageTitle">Dashboard</h1>
+                <div class="flex gap-3">
+                    <button onclick="initApp()" id="btnRefreshGlobal" class="text-gray-500 hover:text-emerald-600 transition" title="Refresh Data"><i class="fas fa-sync-alt"></i></button>
+                </div>
+            </header>
+
+            <div id="contentArea" class="flex-1 overflow-y-auto p-4 lg:p-8 pb-24"></div>
+        </main>
+    </div>
+
+    <div id="loginScreen" class="fixed inset-0 bg-emerald-900 flex items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md p-8 m-4 relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-2 bg-emerald-500"></div>
+            <div class="text-center mb-8">
+                <i class="fas fa-book-quran text-4xl text-emerald-600 mb-3"></i>
+                <h2 class="text-2xl font-bold text-gray-800" id="loginTitleDisplay">Sistem Akademik Tahfizh</h2>
+                <p class="text-sm text-gray-500 mt-1">Silakan login untuk melanjutkan</p>
+            </div>
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Username / No. WA</label>
+                    <input type="text" id="loginUsername" required class="w-full px-4 py-2 border rounded-lg focus:ring-emerald-500 focus:border-emerald-500 outline-none transition" placeholder="Masukkan Username / WA">
+                </div>
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <div class="relative">
+                        <input type="password" id="loginPassword" required class="w-full px-4 py-2 pr-10 border rounded-lg focus:ring-emerald-500 focus:border-emerald-500 outline-none transition" placeholder="Admin/Tgl Lahir (DDMMYYYY)">
+                        <button type="button" onclick="togglePasswordVisibility()" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-emerald-600 transition" title="Intip Password">
+                            <i class="fas fa-eye" id="togglePasswordIcon"></i>
+                        </button>
+                    </div>
+                </div>
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-lg transition shadow-lg shadow-emerald-200 flex justify-center items-center gap-2">
+                    <i class="fas fa-sign-in-alt"></i> Masuk
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="generalModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div class="px-6 py-4 border-b flex justify-between items-center">
+                <h3 class="font-bold text-lg" id="modalTitle">Form</h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-red-500"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-6 overflow-y-auto" id="modalBody"></div>
+            <div class="px-6 py-4 border-t bg-gray-50 flex justify-end gap-3 rounded-b-xl" id="modalFooter">
+                <button onclick="closeModal()" class="px-4 py-2 text-gray-600 bg-gray-200 hover:bg-gray-300 rounded">Batal</button>
+                <button id="btnSaveModal" class="px-4 py-2 text-white bg-emerald-600 hover:bg-emerald-700 rounded shadow">Simpan</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null; 
+        let currentRole = null; 
+        let DB = {}; 
+        let maps = {}; 
+        let progressChartInstance = null;
+
+        const showLoading = (text = "Memuat...") => { document.getElementById('loadingText').innerText = text; document.getElementById('loadingScreen').classList.remove('hidden'); };
+        const hideLoading = () => document.getElementById('loadingScreen').classList.add('hidden');
+        const toggleSidebar = () => { document.getElementById('sidebar').classList.toggle('-translate-x-full'); document.getElementById('sidebarBackdrop').classList.toggle('hidden'); };
+        
+        function togglePasswordVisibility() {
+            const pwdInput = document.getElementById('loginPassword');
+            const pwdIcon = document.getElementById('togglePasswordIcon');
+            if (pwdInput.type === 'password') {
+                pwdInput.type = 'text';
+                pwdIcon.classList.remove('fa-eye');
+                pwdIcon.classList.add('fa-eye-slash');
+            } else {
+                pwdInput.type = 'password';
+                pwdIcon.classList.remove('fa-eye-slash');
+                pwdIcon.classList.add('fa-eye');
+            }
+        }
+
+        const formatDateToDDMMYYYY = (dateString) => {
+            if (!dateString) return '';
+            let d = String(dateString).split('T')[0];
+            if (d.includes('-')) {
+                let p = d.split('-');
+                if (p.length === 3) {
+                    if (p[0].length <= 2) return p[0] + p[1] + p[2];
+                    return p[2] + p[1] + p[0]; 
+                }
+            }
+            return d.replace(/-/g, '');
+        };
+
+        const generateId = () => 'ID_' + Math.random().toString(36).substr(2, 9);
+        const getSetting = (key) => { const s = DB.pengaturan?.find(x => x.key_setting === key); return s ? s.value_setting : ''; };
+        const isSiswaAktif = (s) => !s.status_siswa || s.status_siswa === 'Aktif';
+
+        const getAvailableUnits = () => {
+            if (currentRole === 'guru') {
+                const myUnits = currentUser.id_unit_multi ? String(currentUser.id_unit_multi).split(',') : [];
+                return (DB.unit || []).filter(u => myUnits.includes(u.id));
+            }
+            return DB.unit || [];
+        };
+
+        const canGuruAccessSiswa = (siswaId) => {
+            if (currentRole === 'admin' || currentRole === 'ortu') return true;
+            if (currentRole === 'guru') {
+                const myUnits = currentUser.id_unit_multi ? String(currentUser.id_unit_multi).split(',') : [];
+                const sis = maps.siswa[siswaId];
+                if (!sis) return false;
+                const unitId = maps.kelas[sis.id_kelas]?.id_unit;
+                return myUnits.includes(unitId);
+            }
+            return true;
+        };
+
+        const canGuruAccessLaporanSiswa = (siswaId) => {
+            if (currentRole === 'admin' || currentRole === 'ortu') return true;
+            if (currentRole === 'guru') {
+                const sis = maps.siswa[siswaId];
+                if (!sis) return false;
+                const isWali = maps.kelas[sis.id_kelas]?.id_wali_kelas === currentUser.id;
+                const isGuruHal = maps.halaqoh[sis.id_halaqoh]?.id_guru_utama === currentUser.id || maps.halaqoh[sis.id_halaqoh]?.id_guru_pendamping === currentUser.id;
+                const isGuruHalAsr = sis.id_halaqoh_asrama && (maps.halaqoh[sis.id_halaqoh_asrama]?.id_guru_utama === currentUser.id || maps.halaqoh[sis.id_halaqoh_asrama]?.id_guru_pendamping === currentUser.id);
+                return isWali || isGuruHal || isGuruHalAsr;
+            }
+            return true;
+        };
+
+        const hasLaporanAccess = () => {
+            if (currentRole === 'admin' || currentRole === 'ortu') return true;
+            if (currentRole === 'guru') {
+                const isWali = (DB.kelas||[]).some(k => k.id_wali_kelas === currentUser.id);
+                const isGuruHal = (DB.halaqoh||[]).some(h => h.id_guru_utama === currentUser.id || h.id_guru_pendamping === currentUser.id);
+                return isWali || isGuruHal;
+            }
+            return false;
+        };
+
+        const getAccessibleStudents = () => {
+            if(currentRole === 'ortu') return currentUser.anak || [];
+            if(currentRole === 'admin') return DB.siswa || [];
+            return (DB.siswa || []).filter(s => canGuruAccessLaporanSiswa(s.id));
+        };
+
+        const buildKelasOptions = (unitId, defaultText = "Semua Kelas") => {
+            let arr = DB.kelas || [];
+            if (unitId) {
+                arr = arr.filter(k => k.id_unit === unitId);
+            } else if (currentRole === 'guru') {
+                const myUnits = currentUser.id_unit_multi ? String(currentUser.id_unit_multi).split(',') : [];
+                arr = arr.filter(k => myUnits.includes(k.id_unit));
+            }
+            return `<option value="">${defaultText}</option>` + arr.map(k=>`<option value="${k.id}">${k.nama_kelas}</option>`).join('');
+        };
+
+        function applySettingsToUI() {
+            const appName = getSetting('nama_aplikasi') || 'e-Tasmi';
+            const el = document.getElementById('appNameDisplay');
+            if (el) el.innerText = appName;
+            document.title = appName + ' - Sistem Tahfizh';
+
+            const loginTitle = getSetting('nama_sistem_login') || 'Sistem Akademik Tahfizh';
+            const elLoginTitle = document.getElementById('loginTitleDisplay');
+            if (elLoginTitle) elLoginTitle.innerText = loginTitle;
+        }
+
+        async function fetchAPI(action, payload = {}) {
+            try {
+                const res = await fetch(GAS_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action, ...payload })
+                });
+                return await res.json();
+            } catch (err) {
+                return { success: false, message: 'Koneksi gagal. Pastikan URL Google Apps Script Anda valid.' };
+            }
+        }
+
+        async function initApp(silent = false) {
+            const btnRefresh = document.getElementById('btnRefreshGlobal');
+            
+            if (silent) {
+                if(btnRefresh) btnRefresh.classList.add('animate-spin', 'text-emerald-500');
+            } else {
+                showLoading("Sinkronisasi Data...");
+            }
+
+            const res = await fetchAPI('getAllData');
+            
+            if (silent) {
+                if(btnRefresh) btnRefresh.classList.remove('animate-spin', 'text-emerald-500');
+            } else {
+                hideLoading();
+            }
+
+            if (res.success && res.data) {
+                try {
+                    DB = res.data;
+                    
+                    if(DB.unit && Array.isArray(DB.unit)) DB.unit.sort((a,b) => (a.nama_unit || '').localeCompare(b.nama_unit || ''));
+                    if(DB.kelas && Array.isArray(DB.kelas)) DB.kelas.sort((a,b) => (a.nama_kelas || '').localeCompare(b.nama_kelas || ''));
+                    if(DB.halaqoh && Array.isArray(DB.halaqoh)) DB.halaqoh.sort((a,b) => (a.nama_halaqoh || '').localeCompare(b.nama_halaqoh || ''));
+                    if(DB.guru && Array.isArray(DB.guru)) DB.guru.sort((a,b) => (a.nama_lengkap || '').localeCompare(b.nama_lengkap || ''));
+
+                    if (!DB.pengaturan || !Array.isArray(DB.pengaturan)) DB.pengaturan = [];
+                    if (!DB.pengaturan.find(p => p.key_setting === 'url_logo')) DB.pengaturan.push({ key_setting: 'url_logo', value_setting: '' });
+                    if (!DB.pengaturan.find(p => p.key_setting === 'nama_aplikasi')) DB.pengaturan.push({ key_setting: 'nama_aplikasi', value_setting: 'e-Tasmi' });
+                    if (!DB.pengaturan.find(p => p.key_setting === 'nama_sistem_login')) DB.pengaturan.push({ key_setting: 'nama_sistem_login', value_setting: 'Sistem Akademik Tahfizh' });
+
+                    localStorage.setItem('tasmi_db', JSON.stringify(DB)); 
+                    buildMaps();
+                    applySettingsToUI();
+                    
+                    if(currentUser) {
+                        if (currentRole === 'guru') {
+                            const freshGuru = (DB.guru||[]).find(g => g.id === currentUser.id);
+                            if (freshGuru) currentUser = freshGuru; 
+                        } else if (currentRole === 'admin') {
+                            const freshAdmin = (DB.admin||[]).find(a => a.id === currentUser.id);
+                            if (freshAdmin) currentUser = freshAdmin;
+                        } else if (currentRole === 'ortu') {
+                            currentUser.anak = (DB.siswa||[]).filter(s => s.no_wa_ortu === currentUser.id);
+                        }
+                        
+                        localStorage.setItem('tasmi_user', JSON.stringify(currentUser));
+                        refreshSidebarMenu();
+
+                        const pt = document.getElementById('pageTitle');
+                        const currentPage = pt ? pt.innerText : '';
+                        const activeMenu = MENUS.find(m => m.label === currentPage);
+                        if(activeMenu && activeMenu.action) {
+                            activeMenu.action();
+                        }
+                    }
+                } catch(err) {
+                    console.error("Kesalahan parsing data:", err);
+                }
+            } else if (!silent && !res.success) {
+                Swal.fire('Error Database', res.message || 'Gagal mengambil data dari server.', 'error');
+            }
+        }
+
+        function buildMaps() {
+            maps.unit = {}; if(DB.unit) DB.unit.forEach(u => maps.unit[u.id] = u);
+            maps.guru = {}; if(DB.guru) DB.guru.forEach(g => maps.guru[g.id] = g);
+            maps.kelas = {}; if(DB.kelas) DB.kelas.forEach(k => maps.kelas[k.id] = k);
+            maps.halaqoh = {}; if(DB.halaqoh) DB.halaqoh.forEach(h => maps.halaqoh[h.id] = h);
+            maps.jabatan = {}; if(DB.jabatan) DB.jabatan.forEach(j => maps.jabatan[j.id] = j);
+            maps.siswa = {}; if(DB.siswa) DB.siswa.forEach(s => maps.siswa[s.id] = s);
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const user = String(document.getElementById('loginUsername').value).trim();
+            const pass = String(document.getElementById('loginPassword').value).trim();
+            
+            showLoading("Verifikasi...");
+            
+            try {
+                if (Object.keys(DB).length === 0 || !DB.admin || !DB.guru || !DB.siswa) {
+                    await initApp(true); 
+                }
+
+                if (!DB || Object.keys(DB).length === 0 || !DB.admin) {
+                    hideLoading();
+                    Swal.fire('Koneksi Gagal', 'Sistem tidak dapat terhubung ke Database. Pastikan URL Google Apps Script sudah benar.', 'error');
+                    return;
+                }
+
+                const matchWa = (dbWa, inputWa) => {
+                    let a = String(dbWa || '').trim();
+                    let b = String(inputWa || '').trim();
+                    if (a.startsWith('8') && b.startsWith('08')) a = '0' + a; 
+                    return a === b;
+                };
+
+                const admin = (DB.admin||[]).find(x => String(x.username).trim() === user && String(x.password).trim() === pass);
+                if (admin) { setSession(admin, 'admin'); return; }
+
+                const guru = (DB.guru||[]).find(x => matchWa(x.no_wa, user) && formatDateToDDMMYYYY(x.tgl_lahir) === pass);
+                if (guru) { setSession(guru, 'guru'); return; }
+
+                const siswaOrtu = (DB.siswa||[]).find(x => matchWa(x.no_wa_ortu, user) && formatDateToDDMMYYYY(x.tgl_lahir) === pass);
+                if (siswaOrtu) { 
+                    setSession({ id: user, nama: 'Ortu dari ' + siswaOrtu.nama_lengkap, anak: DB.siswa.filter(s => matchWa(s.no_wa_ortu, user)) }, 'ortu'); 
+                    return; 
+                }
+
+                hideLoading();
+                Swal.fire('Gagal Login', 'Username atau Password salah!', 'error');
+
+            } catch(err) {
+                console.error(err);
+                hideLoading();
+                Swal.fire('Sistem Error', 'Terjadi kesalahan sistem saat login: ' + err.message, 'error');
+            }
+        }
+
+        function setSession(userData, role) {
+            currentUser = userData;
+            currentRole = role;
+            
+            localStorage.setItem('tasmi_user', JSON.stringify(userData));
+            localStorage.setItem('tasmi_role', role);
+
+            document.getElementById('loginScreen')?.classList.add('hidden');
+            document.getElementById('appContainer')?.classList.remove('hidden');
+            
+            const dName = currentUser.nama || currentUser.nama_lengkap || currentUser.username || 'User';
+            
+            const ud = document.getElementById('userNameDisplay'); if(ud) ud.innerText = dName;
+            const ur = document.getElementById('userRoleDisplay'); if(ur) ur.innerText = role.toUpperCase();
+            const ui = document.getElementById('userInitial'); if(ui) ui.innerText = String(dName).charAt(0).toUpperCase();
+            
+            renderMenuAndDashboard();
+            hideLoading();
+        }
+
+        function logout() {
+            currentUser = null; currentRole = null;
+            
+            localStorage.removeItem('tasmi_user');
+            localStorage.removeItem('tasmi_role');
+
+            document.getElementById('appContainer')?.classList.add('hidden');
+            document.getElementById('loginScreen')?.classList.remove('hidden');
+            document.getElementById('loginForm')?.reset();
+        }
+
+        const MENUS = [
+            { id: 'dashboard', label: 'Dashboard', icon: 'fa-home', roles: ['admin', 'guru'], action: renderDashboard },
+            { label: 'LEADERBOARD', isHeader: true, roles: ['admin', 'guru'] },
+            { id: 'lap_leaderboard', label: 'Leaderboard ZM', icon: 'fa-trophy', roles: ['admin', 'guru'], action: renderLeaderboard },
+            { label: 'MASTER DATA', isHeader: true, roles: ['admin'] },
+            { id: 'm_unit', label: 'Data Unit Sekolah', icon: 'fa-building', roles: ['admin'], action: () => renderCRUD('unit') },
+            { id: 'm_jabatan', label: 'Data Jabatan', icon: 'fa-tags', roles: ['admin'], action: () => renderCRUD('jabatan') },
+            { id: 'm_kelas', label: 'Data Kelas', icon: 'fa-school', roles: ['admin'], action: () => renderCRUD('kelas') },
+            { id: 'm_halaqoh', label: 'Data Halaqoh', icon: 'fa-users', roles: ['admin'], action: () => renderCRUD('halaqoh') },
+            { label: 'MASTER PENGGUNA', isHeader: true, roles: ['admin'] },
+            { id: 'm_admin', label: 'Manajemen Admin', icon: 'fa-user-shield', roles: ['admin'], action: () => renderCRUD('admin') },
+            { id: 'm_guru', label: 'Data Guru', icon: 'fa-chalkboard-user', roles: ['admin'], action: () => { window.currentGuruFilter = ''; window.currentGuruUnitFilter = ''; renderCRUD('guru'); } },
+            { id: 'm_siswa', label: 'Data Siswa', icon: 'fa-user-graduate', roles: ['admin'], action: renderSiswa },
+            { label: 'RUANG TTQ', isHeader: true, roles: ['admin', 'guru'], requireTTQ: true },
+            { id: 'in_setoran', label: 'Input Setoran', icon: 'fa-pen', roles: ['admin', 'guru'], action: renderInputSetoran, requireTTQ: true },
+            { id: 'rw_setoran', label: 'Riwayat Setoran', icon: 'fa-history', roles: ['admin', 'guru'], action: renderRiwayatSetoran, requireTTQ: true },
+            { label: 'RUANG TASMI', isHeader: true, roles: ['admin', 'guru'] },
+            { id: 'in_tasmi', label: 'Input Tasmi', icon: 'fa-star', roles: ['admin', 'guru'], action: renderInputTasmi, requirePenguji: true },
+            { id: 'dt_tasmi', label: 'Riwayat Ujian Tasmi', icon: 'fa-list-check', roles: ['admin', 'guru'], action: renderDataTasmi, requirePenguji: true },
+            { id: 'pr_tasmi', label: 'Progress Ujian Tasmi', icon: 'fa-chart-pie', roles: ['admin', 'guru'], action: renderProgressTasmi },
+            { id: 'detail_tasmi', label: 'Detail Nilai Tasmi', icon: 'fa-file-signature', roles: ['admin', 'ortu'], action: renderDetailTasmi },
+            { label: 'LAPORAN & PENGATURAN', isHeader: true, roles: ['admin', 'guru', 'ortu'] },
+            { id: 'lap_individu', label: 'Laporan Rincian Setoran TTQ', icon: 'fa-file-lines', roles: ['admin'], action: renderLaporanIndividu },
+            { id: 'lap_capaian', label: 'Laporan Rekap Capaian TTQ', icon: 'fa-chart-bar', roles: ['admin', 'guru', 'ortu'], requireLaporanAccess: true, action: renderLaporanCapaian },
+            { id: 'lap_setoran', label: 'Laporan Seluruh Setoran', icon: 'fa-book-open', roles: ['admin', 'guru'], action: renderLaporanSetoran },
+            { id: 'm_pengaturan', label: 'Pengaturan', icon: 'fa-cog', roles: ['admin'], action: renderPengaturan }
+        ];
+
+        function refreshSidebarMenu() {
+            const container = document.getElementById('menuContainer');
+            if(!container) return;
+            container.innerHTML = '';
+            
+            const isPenguji = currentUser && (currentUser.is_penguji === true || String(currentUser.is_penguji).toLowerCase() === 'true' || currentUser.is_penguji === 1 || currentUser.is_penguji === '1');
+            const isGuruTTQ = currentUser && (currentUser.is_guru_ttq === true || String(currentUser.is_guru_ttq).toLowerCase() === 'true' || currentUser.is_guru_ttq === 1 || currentUser.is_guru_ttq === '1');
+            const hasLapAccess = hasLaporanAccess();
+
+            MENUS.forEach(menu => {
+                if (menu.roles.includes(currentRole)) {
+                    if (menu.requirePenguji && currentRole === 'guru' && !isPenguji) return;
+                    if (menu.requireTTQ && currentRole === 'guru' && !isGuruTTQ) return;
+                    if (menu.requireLaporanAccess && currentRole === 'guru' && !hasLapAccess) return;
+
+                    if (menu.isHeader) {
+                        container.innerHTML += `<div class="text-xs font-bold text-emerald-300 mt-4 mb-1 px-2 uppercase tracking-wider">${menu.label}</div>`;
+                    } else {
+                        container.innerHTML += `<button onclick="navigate('${menu.id}')" id="menu-${menu.id}" class="menu-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-emerald-50 hover:bg-emerald-700 transition w-full text-left"><i class="fas ${menu.icon} w-5 text-center"></i> ${menu.label}</button>`;
+                    }
+                }
+            });
+            
+            const pt = document.getElementById('pageTitle');
+            const currentPage = pt ? pt.innerText : '';
+            const activeMenu = MENUS.find(m => m.label === currentPage);
+            if(activeMenu) {
+                const btn = document.getElementById(`menu-${activeMenu.id}`);
+                if(btn) btn.classList.add('bg-emerald-700', 'font-semibold');
+            }
+
+            if (currentRole === 'guru') {
+                if (!isPenguji && (currentPage === 'Input Tasmi' || currentPage === 'Riwayat Ujian Tasmi')) {
+                    Swal.fire('Akses Dicabut', 'Admin telah mencabut hak akses Anda sebagai Penguji Tasmi.', 'info');
+                    navigate('dashboard');
+                }
+                if (!isGuruTTQ && (currentPage === 'Input Setoran' || currentPage === 'Riwayat Setoran')) {
+                    Swal.fire('Akses Dicabut', 'Admin telah mencabut hak akses Anda sebagai Guru TTQ.', 'info');
+                    navigate('dashboard');
+                }
+                if (!hasLapAccess && (currentPage === 'Laporan Rekap Capaian TTQ' || currentPage === 'Laporan Rekap Capaian')) {
+                    Swal.fire('Akses Ditolak', 'Anda bukan lagi Wali Kelas atau Guru Halaqoh.', 'info');
+                    navigate('dashboard');
+                }
+            }
+        }
+
+        function renderMenuAndDashboard() {
+            refreshSidebarMenu();
+            navigate(currentRole === 'ortu' ? 'lap_capaian' : 'dashboard');
+        }
+
+        function navigate(id) {
+            document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('bg-emerald-700', 'font-semibold'));
+            const btn = document.getElementById(`menu-${id}`);
+            if(btn) btn.classList.add('bg-emerald-700', 'font-semibold');
+            const menu = MENUS.find(m => m.id === id);
+            if(menu) {
+                const pt = document.getElementById('pageTitle'); if(pt) pt.innerText = menu.label;
+                const ca = document.getElementById('contentArea'); if(ca) ca.innerHTML = '';
+                menu.action();
+            }
+            if(window.innerWidth < 768) {
+                document.getElementById('sidebar')?.classList.add('-translate-x-full');
+                document.getElementById('sidebarBackdrop')?.classList.add('hidden');
+            }
+        }
+
+        const getNamaGuru = (id) => maps.guru[id] ? maps.guru[id].nama_lengkap : '-';
+        const getJabatanGuru = (id_jabatan_multi) => {
+            if(!id_jabatan_multi) return '-';
+            const ids = id_jabatan_multi.split(',');
+            return ids.map(id => maps.jabatan[id] ? maps.jabatan[id].nama_jabatan : '').filter(Boolean).join(', ');
+        };
+        const getNamaKelas = (id) => maps.kelas[id] ? maps.kelas[id].nama_kelas : '-';
+        const getWaliKelas = (id_kelas) => maps.kelas[id_kelas] ? getNamaGuru(maps.kelas[id_kelas].id_wali_kelas) : '-';
+        const getNamaHalaqoh = (id) => maps.halaqoh[id] ? maps.halaqoh[id].nama_halaqoh : '-';
+        const getNamaSiswa = (id) => maps.siswa[id] ? maps.siswa[id].nama_lengkap : '-';
+        const getSiswaObj = (id) => maps.siswa[id] || {};
+
+        const schemas = {
+            admin: {
+                title: 'Admin',
+                fields: [
+                    { name: 'nama', label: 'Nama Lengkap', type: 'text', required: true },
+                    { name: 'username', label: 'Username', type: 'text', required: true },
+                    { name: 'password', label: 'Password', type: 'password', required: true }
+                ]
+            },
+            jabatan: {
+                title: 'Jabatan',
+                fields: [ { name: 'nama_jabatan', label: 'Nama Jabatan', type: 'text', required: true } ]
+            },
+            unit: {
+                title: 'Unit Sekolah',
+                fields: [
+                    { name: 'nama_unit', label: 'Nama Unit (Cth: SMP, SMA, Asrama)', type: 'text', required: true },
+                    { name: 'nama_sekolah_unit', label: 'Nama Sekolah KOP (Cth: SMP IT IZZUDDIN)', type: 'text', required: true },
+                    { name: 'nama_kepsek', label: 'Nama Kepala Sekolah', type: 'text', required: true },
+                    { name: 'nip_kepsek', label: 'NIP/NIY Kepala Sekolah', type: 'text', required: false, note: 'Boleh dikosongkan' }
+                ]
+            },
+            kelas: {
+                title: 'Kelas',
+                fields: [
+                    { name: 'nama_kelas', label: 'Nama Kelas', type: 'text', required: true },
+                    { name: 'id_unit', label: 'Pilih Unit', type: 'select', options: () => (DB.unit||[]).map(u => ({val: u.id, text: u.nama_unit})), required: true },
+                    { name: 'id_wali_kelas', label: 'Wali Kelas', type: 'select', options: () => (DB.guru||[]).map(g => ({val: g.id, text: `${g.nama_lengkap} (${getJabatanGuru(g.id_jabatan_multi)})`})), required: true }
+                ]
+            },
+            halaqoh: {
+                title: 'Halaqoh',
+                fields: [
+                    { name: 'nama_halaqoh', label: 'Nama Halaqoh', type: 'text', required: true },
+                    { name: 'kategori_halaqoh', label: 'Kategori Halaqoh', type: 'select', options: () => [{val:'Reguler', text:'Reguler (Sekolah)'}, {val:'Asrama', text:'Asrama (Pondok)'}], required: true },
+                    { name: 'id_guru_utama', label: 'Guru Utama', type: 'select', options: () => (DB.guru||[]).filter(g => g.is_guru_ttq === true || String(g.is_guru_ttq).toLowerCase() === 'true' || g.is_guru_ttq === 1 || g.is_guru_ttq === '1').map(g => ({val: g.id, text: `${g.nama_lengkap} (${getJabatanGuru(g.id_jabatan_multi)})`})), required: true },
+                    { name: 'id_guru_pendamping', label: 'Guru Pendamping', type: 'select', options: () => [{val:'', text:'-- Kosong --'}, ...(DB.guru||[]).filter(g => g.is_guru_ttq === true || String(g.is_guru_ttq).toLowerCase() === 'true' || g.is_guru_ttq === 1 || g.is_guru_ttq === '1').map(g => ({val: g.id, text: `${g.nama_lengkap} (${getJabatanGuru(g.id_jabatan_multi)})`}))] }
+                ]
+            },
+            guru: {
+                title: 'Guru',
+                fields: [
+                    { name: 'nama_lengkap', label: 'Nama Lengkap', type: 'text', required: true },
+                    { name: 'jk', label: 'Jenis Kelamin', type: 'select', options: ()=>[{val:'L', text:'Laki-laki'}, {val:'P', text:'Perempuan'}], required: true },
+                    { name: 'tmp_lahir', label: 'Tempat Lahir', type: 'text', required: true },
+                    { name: 'tgl_lahir', label: 'Tanggal Lahir', type: 'date', required: true, note: 'Tgl lahir otomatis jadi password' },
+                    { name: 'no_wa', label: 'No WA', type: 'text', required: true, note: 'Otomatis jadi Username' },
+                    { name: 'id_jabatan_multi', label: 'Jabatan (Bisa pilih lebih dari 1)', type: 'multi-select', options: () => (DB.jabatan||[]).map(j => ({val: j.id, text: j.nama_jabatan})), required: true },
+                    { name: 'id_unit_multi', label: 'Akses Unit Mengajar (Pilih >1)', type: 'multi-select', options: () => (DB.unit||[]).map(u => ({val: u.id, text: u.nama_unit})), required: true },
+                    { name: 'is_guru_ttq', label: 'Jadikan Guru TTQ (Bisa Input Setoran)?', type: 'checkbox' },
+                    { name: 'is_penguji', label: 'Jadikan Penguji Tasmi?', type: 'checkbox' }
+                ]
+            }
+        };
+
+        function renderCRUD(tableKey) {
+            const schema = schemas[tableKey];
+            let data = [...(DB[tableKey] || [])];
+            
+            let filterHtml = '';
+            if (tableKey === 'guru') {
+                const fKat = window.currentGuruFilter || '';
+                const fUnit = window.currentGuruUnitFilter || '';
+                
+                filterHtml = `
+                    <div class="flex flex-wrap gap-2 mb-4 bg-gray-50 p-3 rounded-lg border">
+                        <select class="border rounded p-1.5 text-sm font-semibold text-emerald-800 outline-none focus:ring focus:ring-emerald-200" onchange="window.currentGuruUnitFilter = this.value; renderCRUD('guru')">
+                            <option value="">Semua Unit</option>
+                            ${(DB.unit||[]).map(u => `<option value="${u.id}" ${fUnit === u.id ? 'selected' : ''}>${u.nama_unit}</option>`).join('')}
+                        </select>
+
+                        <select class="border rounded p-1.5 text-sm font-semibold text-emerald-800 outline-none focus:ring focus:ring-emerald-200" onchange="window.currentGuruFilter = this.value; renderCRUD('guru')">
+                            <option value="" ${fKat === '' ? 'selected' : ''}>Semua Kategori Guru</option>
+                            <option value="ttq" ${fKat === 'ttq' ? 'selected' : ''}>Khusus Guru TTQ (Input Setoran)</option>
+                            <option value="nonttq" ${fKat === 'nonttq' ? 'selected' : ''}>Guru Non-TTQ (Umum/Walas dll)</option>
+                            <option value="tasmi" ${fKat === 'tasmi' ? 'selected' : ''}>Khusus Penguji Tasmi</option>
+                        </select>
+                    </div>
+                `;
+
+                if (fUnit) {
+                    data = data.filter(g => {
+                        const uids = (g.id_unit_multi || '').split(',');
+                        return uids.includes(fUnit);
+                    });
+                }
+
+                if (fKat === 'ttq') {
+                    data = data.filter(g => g.is_guru_ttq === true || String(g.is_guru_ttq).toLowerCase() === 'true' || g.is_guru_ttq === 1 || g.is_guru_ttq === '1');
+                } else if (fKat === 'nonttq') {
+                    data = data.filter(g => !(g.is_guru_ttq === true || String(g.is_guru_ttq).toLowerCase() === 'true' || g.is_guru_ttq === 1 || g.is_guru_ttq === '1'));
+                } else if (fKat === 'tasmi') {
+                    data = data.filter(g => g.is_penguji === true || String(g.is_penguji).toLowerCase() === 'true' || g.is_penguji === 1 || g.is_penguji === '1');
+                }
+
+                data.sort((a, b) => (a.nama_lengkap || '').localeCompare(b.nama_lengkap || ''));
+            }
+
+            let html = `
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-bold text-gray-800">Data ${schema.title}</h2>
+                        <button onclick="openForm('${tableKey}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded shadow text-sm font-medium"><i class="fas fa-plus"></i> Tambah</button>
+                    </div>
+                    ${filterHtml}
+                    <div class="overflow-x-auto">
+                        <table class="dt-table">
+                            <thead><tr>
+                                <th>No</th>
+                                ${schema.fields.map(f => `<th>${f.label.split('(')[0]}</th>`).join('')}
+                                <th class="text-right">Aksi</th>
+                            </tr></thead>
+                            <tbody>
+                                ${data.length === 0 ? `<tr><td colspan="${schema.fields.length+2}" class="text-center py-4">Tidak ada data</td></tr>` : ''}
+                                ${data.map((row, i) => `
+                                    <tr>
+                                        <td>${i+1}</td>
+                                        ${schema.fields.map(f => {
+                                            let val = row[f.name];
+                                            if (f.name === 'id_wali_kelas' || f.name === 'id_guru_utama' || f.name === 'id_guru_pendamping') val = getNamaGuru(val);
+                                            if (f.name === 'id_jabatan_multi') val = getJabatanGuru(val);
+                                            if (f.name === 'id_unit') val = maps.unit[val] ? maps.unit[val].nama_unit : '-';
+                                            if (f.name === 'id_unit_multi') {
+                                                const uids = (val || '').split(',');
+                                                val = uids.map(id => maps.unit[id] ? maps.unit[id].nama_unit : '').filter(Boolean).join(', ');
+                                            }
+                                            if (f.type === 'checkbox') {
+                                                const isTrue = val === true || String(val).toLowerCase() === 'true' || val === 1 || val === '1';
+                                                val = isTrue ? '<span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-bold">Ya</span>' : '<span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">Tidak</span>';
+                                            }
+                                            if (f.type === 'date' && val) val = val.split('-').reverse().join('-');
+                                            return `<td>${val || '-'}</td>`;
+                                        }).join('')}
+                                        <td class="text-right whitespace-nowrap">
+                                            <button onclick="openForm('${tableKey}', '${row.id}')" class="text-blue-500 hover:bg-blue-50 p-2 rounded mr-1"><i class="fas fa-edit"></i></button>
+                                            <button onclick="deleteData('${tableKey}', '${row.id}')" class="text-red-500 hover:bg-red-50 p-2 rounded"><i class="fas fa-trash"></i></button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            const ca = document.getElementById('contentArea'); if(ca) ca.innerHTML = html;
+        }
+
+        function openForm(tableKey, id = null) {
+            const schema = schemas[tableKey];
+            const data = id ? DB[tableKey].find(x => x.id === id) : {};
+            const mt = document.getElementById('modalTitle'); if(mt) mt.innerText = (id ? 'Edit ' : 'Tambah ') + schema.title;
+            
+            let formHtml = `<form id="dynamicForm" class="space-y-4"><input type="hidden" id="formId" value="${id || ''}">`;
+            schema.fields.forEach(f => {
+                let val = data[f.name] !== undefined ? data[f.name] : '';
+                formHtml += `<div><label class="block text-sm font-medium text-gray-700 mb-1">${f.label}</label>`;
+                
+                if (f.type === 'select') {
+                    formHtml += `<select id="field_${f.name}" ${f.required?'required':''} class="w-full border rounded p-2 focus:ring-emerald-500 focus:border-emerald-500">`;
+                    formHtml += `<option value="">-- Pilih --</option>`;
+                    f.options().forEach(opt => {
+                        formHtml += `<option value="${opt.val}" ${val === opt.val ? 'selected' : ''}>${opt.text}</option>`;
+                    });
+                    formHtml += `</select>`;
+                } else if (f.type === 'multi-select') {
+                    const vals = val ? val.split(',') : [];
+                    formHtml += `<select id="field_${f.name}" multiple ${f.required?'required':''} class="w-full border rounded p-2 focus:ring-emerald-500 focus:border-emerald-500 h-24">`;
+                    f.options().forEach(opt => {
+                        formHtml += `<option value="${opt.val}" ${vals.includes(opt.val) ? 'selected' : ''}>${opt.text}</option>`;
+                    });
+                    formHtml += `</select><p class="text-xs text-gray-500 mt-1">Tahan CTRL/CMD untuk pilih lebih dari satu.</p>`;
+                } else if (f.type === 'checkbox') {
+                    const isChecked = val === true || String(val).toLowerCase() === 'true' || val === 1 || val === '1';
+                    formHtml += `<input type="checkbox" id="field_${f.name}" ${isChecked ? 'checked' : ''} class="w-5 h-5 text-emerald-600 rounded">`;
+                } else {
+                    formHtml += `<input type="${f.type}" id="field_${f.name}" value="${val}" ${f.required?'required':''} class="w-full border rounded p-2 focus:ring-emerald-500 focus:border-emerald-500">`;
+                }
+                if (f.note) formHtml += `<p class="text-xs text-gray-500 mt-1">* ${f.note}</p>`;
+                formHtml += `</div>`;
+            });
+            formHtml += `</form>`;
+            
+            const mb = document.getElementById('modalBody'); if(mb) mb.innerHTML = formHtml;
+            const bsm = document.getElementById('btnSaveModal'); if(bsm) bsm.onclick = () => saveForm(tableKey);
+            document.getElementById('generalModal')?.classList.remove('hidden');
+        }
+
+        async function saveForm(tableKey) {
+            const form = document.getElementById('dynamicForm');
+            if(!form.checkValidity()) { form.reportValidity(); return; }
+            
+            const schema = schemas[tableKey];
+            let payload = {};
+            schema.fields.forEach(f => {
+                const el = document.getElementById(`field_${f.name}`);
+                if (f.type === 'multi-select') {
+                    payload[f.name] = Array.from(el.selectedOptions).map(opt => opt.value).join(',');
+                } else if (f.type === 'checkbox') {
+                    payload[f.name] = el.checked;
+                } else {
+                    payload[f.name] = el.value;
+                }
+            });
+
+            const id = document.getElementById('formId').value;
+            showLoading("Menyimpan...");
+            const res = await fetchAPI(id ? 'update' : 'insert', { sheet: tableKey, id, data: payload });
+            hideLoading();
+            
+            if (res.success) {
+                closeModal();
+                Swal.fire('Berhasil', 'Data disimpan', 'success');
+                await initApp(); 
+                renderCRUD(tableKey);
+            } else {
+                Swal.fire('Error', res.message || 'Gagal menyimpan data.', 'error');
+            }
+        }
+
+        async function deleteData(tableKey, id) {
+            const conf = await Swal.fire({ title: 'Hapus Data?', text: "Data tidak bisa dikembalikan!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Ya, Hapus!' });
+            if (conf.isConfirmed) {
+                showLoading("Menghapus...");
+                const res = await fetchAPI('delete', { sheet: tableKey, id });
+                hideLoading();
+                if (res.success) { await initApp(); renderCRUD(tableKey); }
+            }
+        }
+
+        function closeModal() { document.getElementById('generalModal')?.classList.add('hidden'); }
+
+        const filterByWaktu = (data, fWaktu, dateField = 'tgl') => {
+            if(!fWaktu || fWaktu === 'semua') return data;
+            const now = new Date();
+            const currMonth = now.getMonth() + 1;
+            const currYear = now.getFullYear();
+            const currDate = now.toISOString().split('T')[0];
+            return data.filter(d => {
+                if(!d[dateField]) return false;
+                if(fWaktu === 'hari_ini') return d[dateField] === currDate;
+                if(fWaktu === 'bulan_ini') {
+                    const parts = d[dateField].split('-');
+                    return parts.length === 3 && parseInt(parts[1]) === currMonth && parseInt(parts[0]) === currYear;
+                }
+                return true;
+            });
+        };
+
+        function renderDashboard() {
+            let html = `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">`;
+            if (currentRole === 'admin') {
+                html += `<div class="bg-white p-5 rounded-xl shadow-sm border flex items-center gap-4"><div class="p-3 bg-blue-100 text-blue-600 rounded-lg text-xl"><i class="fas fa-users"></i></div><div><p class="text-sm text-gray-500">Total Siswa Aktif</p><h3 class="text-2xl font-bold">${(DB.siswa||[]).filter(isSiswaAktif).length}</h3></div></div>
+                        <div class="bg-white p-5 rounded-xl shadow-sm border flex items-center gap-4"><div class="p-3 bg-green-100 text-green-600 rounded-lg text-xl"><i class="fas fa-chalkboard-user"></i></div><div><p class="text-sm text-gray-500">Total Guru</p><h3 class="text-2xl font-bold">${(DB.guru||[]).length}</h3></div></div>
+                        <div class="bg-white p-5 rounded-xl shadow-sm border flex items-center gap-4"><div class="p-3 bg-purple-100 text-purple-600 rounded-lg text-xl"><i class="fas fa-book-open"></i></div><div><p class="text-sm text-gray-500">Setoran (Bulan ini)</p><h3 class="text-2xl font-bold">${filterByWaktu(DB.setoran||[], 'bulan_ini').length}</h3></div></div>
+                        <div class="bg-white p-5 rounded-xl shadow-sm border flex items-center gap-4"><div class="p-3 bg-yellow-100 text-yellow-600 rounded-lg text-xl"><i class="fas fa-star"></i></div><div><p class="text-sm text-gray-500">Tasmi Lulus</p><h3 class="text-2xl font-bold">${(DB.tasmi||[]).filter(t=>t.status==='Lulus').length}</h3></div></div></div>`;
+            } else if (currentRole === 'guru') {
+                 html += `<div class="bg-white p-5 rounded-xl shadow-sm border flex items-center gap-4"><div class="p-3 bg-blue-100 text-blue-600 rounded-lg text-xl"><i class="fas fa-users"></i></div><div><p class="text-sm text-gray-500">Siswa Halaqoh Saya</p><h3 class="text-2xl font-bold">${(DB.siswa||[]).filter(s=> isSiswaAktif(s) && (DB.halaqoh||[]).find(hq=> (hq.id===s.id_halaqoh || hq.id===s.id_halaqoh_asrama) && (hq.id_guru_utama===currentUser.id || hq.id_guru_pendamping===currentUser.id))).length}</h3></div></div>
+                         <div class="bg-white p-5 rounded-xl shadow-sm border flex items-center gap-4"><div class="p-3 bg-green-100 text-green-600 rounded-lg text-xl"><i class="fas fa-pen"></i></div><div><p class="text-sm text-gray-500">Setoran Saya Input</p><h3 class="text-2xl font-bold">${(DB.setoran||[]).filter(s=>s.id_penginput===currentUser.id).length}</h3></div></div>
+                         <div class="bg-white p-5 rounded-xl shadow-sm border flex items-center gap-4"><div class="p-3 bg-purple-100 text-purple-600 rounded-lg text-xl"><i class="fas fa-book-open"></i></div><div><p class="text-sm text-gray-500">Setoran (Unit Saya)</p><h3 class="text-2xl font-bold">${(DB.setoran||[]).filter(s=> filterByWaktu([s], 'bulan_ini').length > 0 && canGuruAccessSiswa(s.id_siswa)).length}</h3></div></div>
+                         <div class="bg-white p-5 rounded-xl shadow-sm border flex items-center gap-4"><div class="p-3 bg-yellow-100 text-yellow-600 rounded-lg text-xl"><i class="fas fa-star"></i></div><div><p class="text-sm text-gray-500">Tasmi Lulus (Unit Saya)</p><h3 class="text-2xl font-bold">${(DB.tasmi||[]).filter(t=>t.status==='Lulus' && canGuruAccessSiswa(t.id_siswa)).length}</h3></div></div></div>`;
+            }
+
+            if (['admin', 'guru'].includes(currentRole)) {
+                html += `
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                        <div class="flex flex-wrap gap-3 justify-between items-center mb-4 border-b pb-3">
+                            <h2 class="text-lg font-bold text-gray-800"><i class="fas fa-medal text-emerald-500"></i> Top 5 Ziyadah (Aktif)</h2>
+                            <select id="dashFilterWaktuZ" class="border rounded p-1.5 text-sm outline-none focus:ring focus:ring-emerald-200" onchange="updateDashboardTop5()">
+                                <option value="semua">Semua Waktu</option><option value="bulan_ini">Bulan Ini</option><option value="hari_ini">Hari Ini</option>
+                            </select>
+                        </div>
+                        <div id="top5ZiyadahContainer" class="overflow-x-auto"></div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                        <div class="flex flex-wrap gap-3 justify-between items-center mb-4 border-b pb-3">
+                            <h2 class="text-lg font-bold text-gray-800"><i class="fas fa-medal text-blue-500"></i> Top 5 Murojaah (Aktif)</h2>
+                            <select id="dashFilterWaktuM" class="border rounded p-1.5 text-sm outline-none focus:ring focus:ring-emerald-200" onchange="updateDashboardTop5()">
+                                <option value="semua">Semua Waktu</option><option value="bulan_ini">Bulan Ini</option><option value="hari_ini">Hari Ini</option>
+                            </select>
+                        </div>
+                        <div id="top5MurojaahContainer" class="overflow-x-auto"></div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mt-6 mb-8">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-3"><i class="fas fa-file-invoice text-indigo-500"></i> Akses Cepat Laporan</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        ${currentRole === 'admin' ? `
+                        <button onclick="navigate('lap_individu')" class="flex flex-col items-center justify-center p-6 border rounded-lg hover:bg-indigo-50 transition text-indigo-700 shadow-sm">
+                            <i class="fas fa-file-lines text-3xl mb-2"></i>
+                            <span class="font-bold">Laporan Individu</span>
+                        </button>` : ''}
+                        
+                        ${hasLaporanAccess() ? `
+                        <button onclick="navigate('lap_capaian')" class="flex flex-col items-center justify-center p-6 border rounded-lg hover:bg-blue-50 transition text-blue-700 shadow-sm">
+                            <i class="fas fa-chart-bar text-3xl mb-2"></i>
+                            <span class="font-bold">Laporan Rekap Capaian</span>
+                        </button>` : ''}
+
+                        <button onclick="navigate('lap_setoran')" class="flex flex-col items-center justify-center p-6 border rounded-lg hover:bg-emerald-50 transition text-emerald-700 shadow-sm">
+                            <i class="fas fa-book-open text-3xl mb-2"></i>
+                            <span class="font-bold">Laporan Seluruh Setoran</span>
+                        </button>
+                    </div>
+                </div>`;
+            }
+            
+            const ca = document.getElementById('contentArea'); if(ca) ca.innerHTML = html;
+            if(currentRole === 'admin' || currentRole === 'guru') updateDashboardTop5();
+        }
+
+        function updateDashboardTop5() {
+            const elZ = document.getElementById('dashFilterWaktuZ'); const fWaktuZ = elZ ? elZ.value : 'semua';
+            const elM = document.getElementById('dashFilterWaktuM'); const fWaktuM = elM ? elM.value : 'semua';
+
+            const buildTop5HTML = (kategori, filterWaktu) => {
+                let dataKat = (DB.setoran||[]).filter(s => s.kategori === kategori && isSiswaAktif(getSiswaObj(s.id_siswa)) && canGuruAccessSiswa(s.id_siswa));
+                dataKat = filterByWaktu(dataKat, filterWaktu, 'tgl');
+                
+                let rankMap = {};
+                dataKat.forEach(s => {
+                    if(!rankMap[s.id_siswa]) rankMap[s.id_siswa] = { count: 0, hal: 0 };
+                    rankMap[s.id_siswa].count += 1;
+                    rankMap[s.id_siswa].hal += parseFloat(s.jml_halaman || 0);
+                });
+
+                let rankArr = Object.keys(rankMap).map(id => ({ id_siswa: id, count: rankMap[id].count, hal: rankMap[id].hal }));
+                rankArr.sort((a,b) => b.count - a.count || b.hal - a.hal);
+                const top5 = rankArr.slice(0, 5);
+
+                let html = `<table class="dt-table text-sm w-full whitespace-nowrap"><thead><tr><th>Rank</th><th>Nama Siswa (Kelas)</th><th>Jml Setoran</th><th>Jml Halaman</th></tr></thead><tbody>`;
+                if(top5.length === 0) {
+                    html += `<tr><td colspan="4" class="text-center py-4 text-gray-500">Belum ada data setoran.</td></tr>`;
+                } else {
+                    top5.forEach((r, i) => {
+                        const sis = getSiswaObj(r.id_siswa);
+                        let badge = i===0 ? '<i class="fas fa-trophy text-yellow-500 text-xl"></i>' : i===1 ? '<i class="fas fa-medal text-gray-400 text-lg"></i>' : i===2 ? '<i class="fas fa-medal text-amber-600 text-lg"></i>' : `<span class="font-bold text-gray-500 ml-1">${i+1}</span>`;
+                        html += `<tr><td class="text-center w-12">${badge}</td><td><b>${sis.nama_lengkap || 'Siswa Dihapus'}</b> <span class="text-xs text-gray-500 ml-1">(${getNamaKelas(sis.id_kelas)})</span></td><td class="font-bold text-emerald-600 text-center">${r.count} Kali</td><td class="text-center">${r.hal} Hal</td></tr>`;
+                    });
+                }
+                return html + `</tbody></table>`;
+            };
+
+            const zCont = document.getElementById('top5ZiyadahContainer'); if(zCont) zCont.innerHTML = buildTop5HTML('Ziyadah', fWaktuZ);
+            const mCont = document.getElementById('top5MurojaahContainer'); if(mCont) mCont.innerHTML = buildTop5HTML('Murojaah', fWaktuM);
+
+            let recent10 = [...(DB.setoran||[])].filter(s => canGuruAccessSiswa(s.id_siswa)).sort((a,b) => new Date(b.tgl + 'T' + (b.jam||'00:00')) - new Date(a.tgl + 'T' + (a.jam||'00:00'))).slice(0, 10);
+            let riwayatHtml = `<table class="dt-table text-sm whitespace-nowrap"><thead><tr><th>Waktu</th><th>Nama Siswa (Kelas)</th><th>Kategori</th><th>Jml Halaman</th><th>Predikat</th>${currentRole !== 'guru' ? '<th>Penginput</th>' : ''}</tr></thead><tbody>`;
+            if(recent10.length === 0) {
+                riwayatHtml += `<tr><td colspan="${currentRole!=='guru'?6:5}" class="text-center py-4 text-gray-500">Belum ada riwayat setoran.</td></tr>`;
+            } else {
+                recent10.forEach(d => {
+                    const sis = getSiswaObj(d.id_siswa);
+                    riwayatHtml += `<tr><td>${d.tgl.split('-').reverse().join('-')} <span class="text-xs text-gray-500">${d.jam||''}</span></td><td><b>${sis.nama_lengkap || 'Siswa Dihapus'}</b> <span class="text-xs text-gray-500 ml-1">(${getNamaKelas(sis.id_kelas)})</span></td><td><span class="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">${d.kategori}</span></td><td>${d.jml_halaman} Hal</td><td class="font-bold text-emerald-600">${d.predikat.split(' ')[0]}</td>${currentRole !== 'guru' ? `<td class="text-gray-600">${getNamaGuru(d.id_penginput)}</td>` : ''}</tr>`;
+                });
+            }
+            riwayatHtml += `</tbody></table>`;
+            const rCont = document.getElementById('dashRiwayatContainer'); if(rCont) rCont.innerHTML = riwayatHtml;
+        }
+
+        function renderSiswa() {
+            let html = `
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-4">
+                    <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
+                        <h2 class="text-lg font-bold text-gray-800">Manajemen Data Siswa</h2>
+                        <div class="flex gap-2">
+                            <button onclick="openFormSiswa()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded shadow text-sm font-medium"><i class="fas fa-plus"></i> Tambah</button>
+                            <button onclick="downloadFormatSiswa()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded shadow text-sm font-medium"><i class="fas fa-download"></i> Format</button>
+                            <button onclick="document.getElementById('importSiswaInput').click()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded shadow text-sm font-medium"><i class="fas fa-file-import"></i> Import</button>
+                            <input type="file" id="importSiswaInput" class="hidden" accept=".xlsx, .xls" onchange="prosesImportSiswa(event)">
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-2 mb-4 bg-gray-50 p-3 rounded-lg border">
+                        <select id="filterStatusSiswa" class="border rounded p-1.5 text-sm font-semibold text-emerald-800" onchange="renderTableSiswa()">
+                            <option value="Aktif">Status: Aktif</option>
+                            <option value="Lulus">Status: Lulus (Alumni)</option>
+                            <option value="Pindah">Status: Pindah/Keluar</option>
+                            <option value="semua">Semua Status</option>
+                        </select>
+                        <select id="filterUnitSiswa" class="border rounded p-1.5 text-sm" onchange="const fKS = document.getElementById('filterKelasSiswa'); if(fKS) fKS.innerHTML = buildKelasOptions(this.value, 'Semua Kelas'); renderTableSiswa()">
+                            <option value="">Semua Unit</option>
+                            ${getAvailableUnits().map(u=>`<option value="${u.id}">${u.nama_unit}</option>`).join('')}
+                        </select>
+                        <select id="filterKelasSiswa" class="border rounded p-1.5 text-sm" onchange="renderTableSiswa()">
+                            ${buildKelasOptions('', 'Semua Kelas')}
+                        </select>
+                        <select id="filterKategoriSiswa" class="border rounded p-1.5 text-sm" onchange="renderTableSiswa()">
+                            <option value="">Semua Kategori</option><option value="reguler">Reguler (Non-Asrama)</option><option value="asrama">Asrama (Mondok)</option>
+                        </select>
+                        <select id="filterHalaqohSiswa" class="border rounded p-1.5 text-sm" onchange="renderTableSiswa()">
+                            <option value="">Semua Halaqoh</option>
+                            <optgroup label="🏫 Reguler (Sekolah)">${(DB.halaqoh||[]).filter(h=>h.kategori_halaqoh !== 'Asrama').map(h=>`<option value="${h.id}">${h.nama_halaqoh}</option>`).join('')}</optgroup>
+                            <optgroup label="🏡 Asrama (Pondok)">${(DB.halaqoh||[]).filter(h=>h.kategori_halaqoh === 'Asrama').map(h=>`<option value="${h.id}">${h.nama_halaqoh}</option>`).join('')}</optgroup>
+                        </select>
+                        <select id="filterPlotSiswa" class="border rounded p-1.5 text-sm" onchange="renderTableSiswa()">
+                            <option value="">Semua Status Plot</option><option value="belum">Belum Diplot Kelas/Halaqoh</option>
+                        </select>
+                    </div>
+                    <div class="overflow-x-auto" id="siswaTableContainer"></div>
+                </div>
+            `;
+            const ca = document.getElementById('contentArea'); if(ca) ca.innerHTML = html;
+            renderTableSiswa();
+        }
+
+        function downloadFormatSiswa() {
+            const wb = XLSX.utils.book_new();
+            const wsData = [
+                ["Nama Lengkap", "L/P (L/P)", "Tempat Lahir", "Tgl Lahir (YYYY-MM-DD)", "ID Kelas", "ID Halaqoh Sekolah", "ID Halaqoh Asrama", "Nama Ayah", "Nama Ibu", "No WA Ortu", "Alamat", "Status Siswa (Aktif/Lulus/Pindah)"],
+                ["Siswa Contoh", "L", "Jakarta", "2010-01-01", DB.kelas[0]?.id || "K1", DB.halaqoh[0]?.id || "H1", "", "Nama Ayah", "Nama Ibu", "08123456789", "Jl. Contoh", "Aktif"]
+            ];
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            ws['!cols'] = [{wch:20}, {wch:10}, {wch:15}, {wch:22}, {wch:15}, {wch:18}, {wch:18}, {wch:15}, {wch:15}, {wch:15}, {wch:25}, {wch:20}];
+            XLSX.utils.book_append_sheet(wb, ws, "Template Siswa");
+
+            const wsRefData = [["JENIS", "NAMA", "ID UNTUK DI COPY"]];
+            (DB.kelas||[]).forEach(k => wsRefData.push(["Kelas", k.nama_kelas, k.id]));
+            (DB.halaqoh||[]).forEach(h => wsRefData.push(["Halaqoh " + (h.kategori_halaqoh || 'Reguler'), h.nama_halaqoh, h.id]));
+            const wsRef = XLSX.utils.aoa_to_sheet(wsRefData);
+            wsRef['!cols'] = [{wch:15}, {wch:25}, {wch:20}];
+            XLSX.utils.book_append_sheet(wb, wsRef, "Referensi ID");
+
+            XLSX.writeFile(wb, "Format_Import_Siswa.xlsx");
+        }
+
+        async function prosesImportSiswa(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const json = XLSX.utils.sheet_to_json(worksheet, {raw: false});
+
+                    if (json.length === 0) return Swal.fire('Error', 'File kosong atau format salah.', 'error');
+
+                    showLoading("Mengimpor Data...");
+                    let successCount = 0;
+                    
+                    for (let row of json) {
+                        const payload = {
+                            nama_lengkap: row["Nama Lengkap"], jk: row["L/P (L/P)"], tmp_lahir: row["Tempat Lahir"], tgl_lahir: row["Tgl Lahir (YYYY-MM-DD)"],
+                            id_kelas: row["ID Kelas"], id_halaqoh: row["ID Halaqoh Sekolah"], id_halaqoh_asrama: row["ID Halaqoh Asrama"] || "",
+                            nama_ayah: row["Nama Ayah"], nama_ibu: row["Nama Ibu"], no_wa_ortu: row["No WA Ortu"], alamat: row["Alamat"],
+                            status_siswa: row["Status Siswa (Aktif/Lulus/Pindah)"] || "Aktif"
+                        };
+                        
+                        if(payload.nama_lengkap && payload.tgl_lahir && payload.no_wa_ortu) {
+                            const res = await fetchAPI('insert', { sheet: 'siswa', data: payload });
+                            if(res.success) successCount++;
+                        }
+                    }
+                    
+                    const isi = document.getElementById('importSiswaInput'); if(isi) isi.value = ''; 
+                    hideLoading();
+                    Swal.fire('Selesai', `Berhasil mengimpor ${successCount} data siswa.`, 'success');
+                    await initApp(); renderSiswa();
+                } catch(err) {
+                    hideLoading(); Swal.fire('Error', 'Gagal membaca file Excel.', 'error');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function renderTableSiswa() {
+            const fStat = document.getElementById('filterStatusSiswa')?.value || 'Aktif';
+            const fUnit = document.getElementById('filterUnitSiswa')?.value;
+            const fKelas = document.getElementById('filterKelasSiswa')?.value;
+            const fKat = document.getElementById('filterKategoriSiswa')?.value;
+            const fHal = document.getElementById('filterHalaqohSiswa')?.value;
+            const fPlot = document.getElementById('filterPlotSiswa')?.value;
+            
+            let data = (DB.siswa||[]).filter(s => canGuruAccessSiswa(s.id));
+
+            if (fStat !== 'semua') {
+                if (fStat === 'Aktif') data = data.filter(isSiswaAktif);
+                else data = data.filter(s => s.status_siswa === fStat);
+            }
+
+            if(fUnit) data = data.filter(s => maps.kelas[s.id_kelas]?.id_unit === fUnit);
+            if(fKelas) data = data.filter(s=>s.id_kelas === fKelas);
+            if(fKat === 'reguler') data = data.filter(s=>!s.id_halaqoh_asrama);
+            if(fKat === 'asrama') data = data.filter(s=>s.id_halaqoh_asrama);
+            if(fHal) data = data.filter(s=>s.id_halaqoh === fHal || s.id_halaqoh_asrama === fHal);
+            if(fPlot === 'belum') data = data.filter(s=>!s.id_kelas || !s.id_halaqoh);
+
+            let html = `<table class="dt-table text-sm whitespace-nowrap">
+                <thead><tr><th><input type="checkbox" id="checkAllSiswa" onchange="toggleAllSiswa(this)"></th><th>Nama Lengkap</th><th>L/P</th><th>TTL</th><th>Kelas & Halaqoh</th><th>Ortu & WA</th><th>Status</th><th>Aksi</th></tr></thead><tbody>`;
+            
+            data.forEach(s => {
+                const asramaBadge = s.id_halaqoh_asrama ? `<span class="bg-amber-100 text-amber-800 text-[10px] px-2 py-0.5 rounded mt-1 inline-block border border-amber-200"><i class="fas fa-bed"></i> Asrama: ${getNamaHalaqoh(s.id_halaqoh_asrama)}</span>` : '';
+                let statusBadge = s.status_siswa === 'Lulus' ? `<span class="bg-blue-600 text-white text-[10px] px-2.5 py-1 rounded shadow-sm"><i class="fas fa-user-graduate"></i> Lulus</span>` : s.status_siswa === 'Pindah' ? `<span class="bg-red-600 text-white text-[10px] px-2.5 py-1 rounded shadow-sm"><i class="fas fa-sign-out-alt"></i> Pindah</span>` : `<span class="bg-emerald-500 text-white text-[10px] px-2.5 py-1 rounded shadow-sm"><i class="fas fa-check"></i> Aktif</span>`;
+                let waDisplay = s.no_wa_ortu || '';
+                let waLink = waDisplay.replace(/[-+ \(\)]/g, ''); 
+                if (waLink.startsWith('0')) waLink = '62' + waLink.substring(1);
+                else if (waLink.startsWith('8')) waLink = '62' + waLink;
+
+                html += `<tr>
+                    <td><input type="checkbox" class="check-siswa" value="${s.id}"></td>
+                    <td class="font-medium">${s.nama_lengkap}</td><td>${s.jk}</td>
+                    <td>${s.tmp_lahir}, ${String(s.tgl_lahir).split('-').reverse().join('-')}</td>
+                    <td><span class="bg-blue-100 text-blue-800 text-[10px] px-2 py-0.5 rounded border border-blue-200"><i class="fas fa-school"></i> ${getNamaKelas(s.id_kelas)}</span><br><span class="bg-purple-100 text-purple-800 text-[10px] px-2 py-0.5 rounded mt-1 inline-block border border-purple-200"><i class="fas fa-sun"></i> Reg: ${getNamaHalaqoh(s.id_halaqoh)}</span><br>${asramaBadge}</td>
+                    <td>${s.nama_ayah}/${s.nama_ibu}<br><a href="https://wa.me/${waLink}" target="_blank" class="text-green-600 hover:text-green-700 transition" title="Chat WhatsApp"><i class="fab fa-whatsapp"></i> ${waDisplay}</a></td>
+                    <td>${statusBadge}</td>
+                    <td class="whitespace-nowrap"><button onclick="openFormSiswa('${s.id}')" class="text-blue-500 hover:bg-blue-50 p-1.5 rounded" title="Edit Siswa"><i class="fas fa-edit"></i></button><button onclick="deleteData('siswa', '${s.id}')" class="text-red-500 hover:bg-red-50 p-1.5 rounded" title="Hapus Siswa"><i class="fas fa-trash"></i></button></td>
+                </tr>`;
+            });
+            html += `</tbody></table>`;
+            
+            if(data.length > 0) {
+                html += `<div class="mt-4 p-4 bg-gray-50 border rounded-lg flex flex-wrap items-center gap-3">
+                    <span class="text-sm font-semibold">Update Massal Terpilih:</span>
+                    <select id="massStatus" class="border rounded p-1.5 text-sm font-bold text-blue-700"><option value="">-- Set Status Alumni --</option><option value="Aktif">Kembalikan Aktif</option><option value="Lulus">Lulus (Alumni)</option><option value="Pindah">Pindah/Keluar</option></select>
+                    <select id="massKelas" class="border rounded p-1.5 text-sm"><option value="">-- Set Kelas --</option>${(DB.kelas||[]).map(k=>`<option value="${k.id}">${k.nama_kelas}</option>`).join('')}</select>
+                    <select id="massHalaqoh" class="border rounded p-1.5 text-sm"><option value="">-- Set Hal. Sekolah --</option>${(DB.halaqoh||[]).filter(h=>h.kategori_halaqoh!=='Asrama').map(h=>`<option value="${h.id}">${h.nama_halaqoh}</option>`).join('')}</select>
+                    <select id="massHalaqohAsrama" class="border rounded p-1.5 text-sm"><option value="">-- Set Hal. Asrama --</option><option value="KOSONGKAN">Hapus dari Asrama</option>${(DB.halaqoh||[]).filter(h=>h.kategori_halaqoh==='Asrama').map(h=>`<option value="${h.id}">${h.nama_halaqoh}</option>`).join('')}</select>
+                    <button onclick="pindahMassal()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1.5 rounded text-sm font-medium shadow">Proses Update</button>
+                </div>`;
+            }
+            const stc = document.getElementById('siswaTableContainer'); if(stc) stc.innerHTML = html;
+        }
+        
+        function toggleAllSiswa(el) { document.querySelectorAll('.check-siswa').forEach(cb => cb.checked = el.checked); }
+
+        function openFormSiswa(id = null) {
+            const data = id ? DB.siswa.find(x => x.id === id) : {};
+            const mt = document.getElementById('modalTitle'); if(mt) mt.innerText = (id ? 'Edit ' : 'Tambah ') + 'Siswa';
+            
+            const halSekolah = (DB.halaqoh||[]).filter(h => h.kategori_halaqoh !== 'Asrama');
+            const halAsrama = (DB.halaqoh||[]).filter(h => h.kategori_halaqoh === 'Asrama');
+
+            const fields = [
+                {name:'nama_lengkap', label:'Nama Lengkap', type:'text', req:true}, {name:'jk', label:'L/P', type:'select', opt:[{v:'L',t:'Laki-laki'},{v:'P',t:'Perempuan'}], req:true},
+                {name:'tmp_lahir', label:'Tempat Lahir', type:'text', req:true}, {name:'tgl_lahir', label:'Tgl Lahir (Jd Password)', type:'date', req:true},
+                {name:'id_kelas', label:'Kelas', type:'select', opt:(DB.kelas||[]).map(k=>({v:k.id,t:k.nama_kelas})), req:true},
+                {name:'id_halaqoh', label:'Halaqoh Sekolah (Utama)', type:'select', opt:halSekolah.map(h=>({v:h.id,t:h.nama_halaqoh})), req:true},
+                {name:'id_halaqoh_asrama', label:'Halaqoh Asrama (Opsional)', type:'select', opt:[{v:'',t:'-- Tidak Mondok --'}, ...halAsrama.map(h=>({v:h.id,t:h.nama_halaqoh}))], req:false},
+                {name:'status_siswa', label:'Status Siswa', type:'select', opt:[{v:'Aktif',t:'Aktif'},{v:'Lulus',t:'Lulus (Alumni)'},{v:'Pindah',t:'Pindah/Keluar'}], req:true},
+                {name:'nama_ayah', label:'Nama Ayah', type:'text', req:true}, {name:'nama_ibu', label:'Nama Ibu', type:'text', req:true},
+                {name:'no_wa_ortu', label:'No WA Ortu (Jd Username)', type:'text', req:true}, {name:'alamat', label:'Alamat', type:'text', req:true}
+            ];
+
+            let html = `<form id="formSiswa" class="grid grid-cols-1 md:grid-cols-2 gap-4"><input type="hidden" id="siswaId" value="${id||''}"><div class="col-span-full font-semibold text-emerald-700 border-b pb-2 mb-2">Data Akademik</div>`;
+            
+            fields.forEach((f, i) => {
+                if(f.name==='nama_ayah') html += `<div class="col-span-full font-semibold text-emerald-700 border-b pb-2 mb-2 mt-4">Data Orang Tua</div>`;
+                let val = data[f.name] !== undefined ? data[f.name] : (f.name === 'status_siswa' ? 'Aktif' : '');
+                html += `<div><label class="block text-xs font-medium text-gray-700 mb-1">${f.label}</label>`;
+                if(f.type==='select') {
+                    html += `<select id="s_${f.name}" ${f.req?'required':''} class="w-full border rounded p-2 text-sm focus:ring-emerald-500">`;
+                    if(f.req && f.name !== 'status_siswa') html += `<option value="">-- Pilih --</option>`;
+                    f.opt.forEach(o => html += `<option value="${o.v}" ${val===o.v?'selected':''}>${o.t}</option>`);
+                    html += `</select>`;
+                } else {
+                    html += `<input type="${f.type}" id="s_${f.name}" value="${val}" ${f.req?'required':''} class="w-full border rounded p-2 text-sm focus:ring-emerald-500">`;
+                }
+                html += `</div>`;
+            });
+            html += `</form>`;
+            const mb = document.getElementById('modalBody'); if(mb) mb.innerHTML = html;
+            const bsm = document.getElementById('btnSaveModal'); 
+            if(bsm) bsm.onclick = async () => {
+                const form = document.getElementById('formSiswa');
+                if(!form.checkValidity()) { form.reportValidity(); return; }
+                let payload = {}; fields.forEach(f => payload[f.name] = document.getElementById(`s_${f.name}`).value);
+                showLoading("Menyimpan...");
+                const res = await fetchAPI(id ? 'update' : 'insert', { sheet: 'siswa', id, data: payload });
+                hideLoading();
+                if (res.success) { closeModal(); await initApp(); renderSiswa(); }
+            };
+            document.getElementById('generalModal')?.classList.remove('hidden');
+        }
+
+        async function pindahMassal() {
+            const ids = Array.from(document.querySelectorAll('.check-siswa:checked')).map(cb => cb.value);
+            if(ids.length === 0) return Swal.fire('Oops', 'Pilih minimal 1 siswa', 'warning');
+            
+            const statusAlumni = document.getElementById('massStatus').value;
+            const kelas = document.getElementById('massKelas').value;
+            const halSekolah = document.getElementById('massHalaqoh').value;
+            const halAsrama = document.getElementById('massHalaqohAsrama').value;
+            
+            if(!statusAlumni && !kelas && !halSekolah && !halAsrama) return Swal.fire('Oops', 'Pilih setidaknya salah satu tujuan update', 'warning');
+
+            showLoading("Memproses Update Massal...");
+            for(let id of ids) {
+                let updateData = {};
+                if(statusAlumni) updateData.status_siswa = statusAlumni;
+                if(kelas) updateData.id_kelas = kelas;
+                if(halSekolah) updateData.id_halaqoh = halSekolah;
+                if(halAsrama) updateData.id_halaqoh_asrama = (halAsrama === 'KOSONGKAN') ? '' : halAsrama;
+                
+                await fetchAPI('update', {sheet: 'siswa', id: id, data: updateData});
+            }
+            hideLoading();
+            Swal.fire('Berhasil', 'Siswa berhasil diperbarui', 'success');
+            await initApp(); renderSiswa();
+        }
+
+        function renderInputSetoran() {
+            const isGuruTTQ = currentUser && (currentUser.is_guru_ttq === true || String(currentUser.is_guru_ttq).toLowerCase() === 'true' || currentUser.is_guru_ttq === 1 || currentUser.is_guru_ttq === '1');
+            if (currentRole === 'guru' && !isGuruTTQ) { 
+                const ca = document.getElementById('contentArea'); if(ca) ca.innerHTML = `<div class="p-8 text-center text-red-500 font-bold bg-white rounded-xl shadow">Anda bukan Guru TTQ. Akses ditolak.</div>`; 
+                return; 
+            }
+
+            let myHalaqohs = DB.halaqoh || [];
+            if(currentRole === 'guru') {
+                myHalaqohs = myHalaqohs.filter(h => h.id_guru_utama === currentUser.id || h.id_guru_pendamping === currentUser.id);
+            }
+            
+            let warningHtml = '';
+            if (currentRole === 'guru' && myHalaqohs.length === 0) {
+                warningHtml = `
+                <div class="bg-red-50 p-4 border border-red-200 rounded-lg mb-4 text-sm text-red-800">
+                    <i class="fas fa-exclamation-triangle font-bold"></i> <b>Akses Ditolak:</b> Anda belum ditugaskan sebagai Guru Utama maupun Pendamping di Halaqoh manapun oleh Admin. Silakan hubungi Admin untuk melakukan plotting halaqoh.
+                </div>`;
+            }
+
+            let html = `
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-10 max-w-4xl mx-auto">
+                    <h2 class="text-xl font-bold text-emerald-800 mb-6 border-b pb-2"><i class="fas fa-pen"></i> Form Input Setoran</h2>
+                    ${warningHtml}
+                    <form id="formSetoran" onsubmit="saveSetoran(event)" class="space-y-4 ${warningHtml ? 'hidden' : ''}">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div><label class="block text-sm font-medium mb-1">Tanggal</label><input type="date" id="st_tgl" required class="w-full border p-2 rounded" value="${new Date().toISOString().split('T')[0]}"></div>
+                            <div><label class="block text-sm font-medium mb-1">Jam</label><input type="time" id="st_jam" required class="w-full border p-2 rounded" value="${new Date().toTimeString().slice(0,5)}"></div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Halaqoh</label>
+                                <select id="st_halaqoh" required class="w-full border p-2 rounded" onchange="loadSiswaHalaqoh()">
+                                    <option value="">-- Pilih Halaqoh --</option>
+                                    <optgroup label="🏫 Reguler (Sekolah)">
+                                        ${myHalaqohs.filter(h=>h.kategori_halaqoh !== 'Asrama').map(h=>`<option value="${h.id}">${h.nama_halaqoh}</option>`).join('')}
+                                    </optgroup>
+                                    <optgroup label="🏡 Asrama (Pondok)">
+                                        ${myHalaqohs.filter(h=>h.kategori_halaqoh === 'Asrama').map(h=>`<option value="${h.id}">${h.nama_halaqoh}</option>`).join('')}
+                                    </optgroup>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Siswa</label>
+                                <select id="st_siswa" required class="w-full border p-2 rounded bg-gray-50"><option value="">-- Pilih Halaqoh Dulu --</option></select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Kategori Setoran</label>
+                                <select id="st_kat" required class="w-full border p-2 rounded" onchange="toggleFormMateri()">
+                                    <option value="">-- Pilih Kategori --</option>
+                                    <option value="Ziyadah">Ziyadah</option>
+                                    <option value="Murojaah">Murojaah</option>
+                                    <option value="Tahsin Al-Quran">Tahsin Al-Quran</option>
+                                    <option value="Tahsin Metode Ali">Tahsin Metode Ali</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div id="materiQuraan" class="hidden bg-emerald-50 p-4 rounded-lg border border-emerald-100 grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div><label class="block text-xs font-medium mb-1">Juz</label>
+                                <select id="st_juz" class="w-full border p-2 rounded text-sm"><option value="">Pilih Juz</option>${Array.from({length:30}, (_,i)=>`<option value="${i+1}">${i+1}</option>`).join('')}</select>
+                            </div>
+                            <div class="col-span-2"><label class="block text-xs font-medium mb-1">Surat</label>
+                                <select id="st_surat" class="w-full border p-2 rounded text-sm"><option value="">Pilih</option>${SuraList.map((s,i)=>`<option value="${s}">${i+1} - ${s}</option>`).join('')}</select>
+                            </div>
+                            <div class="flex gap-2">
+                                <div class="w-1/2"><label class="block text-xs font-medium mb-1">Ayat Awal</label><input type="number" id="st_ayat1" class="w-full border p-2 rounded text-sm"></div>
+                                <div class="w-1/2"><label class="block text-xs font-medium mb-1">Ayat Akhir</label><input type="number" id="st_ayat2" class="w-full border p-2 rounded text-sm"></div>
+                            </div>
+                        </div>
+
+                        <div id="materiAli" class="hidden bg-blue-50 p-4 rounded-lg border border-blue-100 grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div><label class="block text-xs font-medium mb-1">Buku Jilid</label>
+                                <select id="st_jilid" class="w-full border p-2 rounded text-sm"><option value="Jilid 1">Jilid 1</option><option value="Jilid 2">Jilid 2</option><option value="Jilid 3">Jilid 3</option><option value="Jilid 4">Jilid 4</option></select>
+                            </div>
+                            <div class="flex gap-2 col-span-2">
+                                <div class="w-1/3"><label class="block text-xs font-medium mb-1">Hal Awal</label><input type="number" id="st_hal1" oninput="calcHal()" class="w-full border p-2 rounded text-sm"></div>
+                                <div class="w-1/3"><label class="block text-xs font-medium mb-1">Hal Akhir</label><input type="number" id="st_hal2" oninput="calcHal()" class="w-full border p-2 rounded text-sm"></div>
+                                <div class="w-1/3"><label class="block text-xs font-medium mb-1">Jml Hal</label><input type="number" id="st_jmlhal_ali" readonly class="w-full border p-2 rounded text-sm bg-gray-200"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 border-t pt-4">
+                            <div id="jmlHalQuraanDiv" class="hidden"><label class="block text-sm font-medium mb-1">Jumlah Halaman</label><input type="number" step="0.5" id="st_jmlhal_q" class="w-full border p-2 rounded"></div>
+                            <div><label class="block text-sm font-medium mb-1">Predikat</label>
+                                <select id="st_predikat" required class="w-full border p-2 rounded"><option value="A (Mumtaz)">A (Mumtaz)</option><option value="B (Jayyid Jiddan)">B (Jayyid Jiddan)</option><option value="C (Jayyid)">C (Jayyid)</option><option value="D (Maqbul)">D (Maqbul)</option><option value="E (Dhaif)">E (Dhaif)</option></select>
+                            </div>
+                            <div class="md:col-span-2"><label class="block text-sm font-medium mb-1">Catatan</label><input type="text" id="st_catatan" class="w-full border p-2 rounded" placeholder="Opsional"></div>
+                        </div>
+
+                        <div class="text-right pt-4">
+                            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-lg shadow font-bold"><i class="fas fa-save"></i> Simpan Setoran</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            const ca = document.getElementById('contentArea'); if(ca) ca.innerHTML = html;
+        }
+
+        function loadSiswaHalaqoh() {
+            const hId = document.getElementById('st_halaqoh')?.value;
+            const sel = document.getElementById('st_siswa');
+            if(!sel) return;
+            sel.innerHTML = '<option value="">-- Pilih Siswa --</option>';
+            if(hId) {
+                const sList = (DB.siswa||[]).filter(s => isSiswaAktif(s) && (s.id_halaqoh === hId || s.id_halaqoh_asrama === hId));
+                sList.forEach(s => {
+                    const statusText = (s.id_halaqoh_asrama === hId) ? '(Asrama)' : '(Reguler)';
+                    sel.innerHTML += `<option value="${s.id}">${s.nama_lengkap} ${statusText}</option>`;
+                });
+                sel.classList.remove('bg-gray-50');
+            }
+        }
+
+        function toggleFormMateri() {
+            const kat = document.getElementById('st_kat')?.value;
+            document.getElementById('materiQuraan')?.classList.add('hidden');
+            document.getElementById('materiAli')?.classList.add('hidden');
+            document.getElementById('jmlHalQuraanDiv')?.classList.add('hidden');
+            
+            if(kat === 'Ziyadah' || kat === 'Murojaah' || kat === 'Tahsin Al-Quran') {
+                document.getElementById('materiQuraan')?.classList.remove('hidden');
+                document.getElementById('jmlHalQuraanDiv')?.classList.remove('hidden');
+                document.getElementById('st_juz').required = true; document.getElementById('st_surat').required = true; document.getElementById('st_jmlhal_q').required = true;
+                document.getElementById('st_hal1').required = false; document.getElementById('st_hal2').required = false;
+            } else if (kat === 'Tahsin Metode Ali') {
+                document.getElementById('materiAli')?.classList.remove('hidden');
+                document.getElementById('st_hal1').required = true; document.getElementById('st_hal2').required = true;
+                document.getElementById('st_juz').required = false; document.getElementById('st_surat').required = false; document.getElementById('st_jmlhal_q').required = false;
+            }
+        }
+
+        function calcHal() {
+            const h1 = parseInt(document.getElementById('st_hal1')?.value) || 0;
+            const h2 = parseInt(document.getElementById('st_hal2')?.value) || 0;
+            const res = document.getElementById('st_jmlhal_ali');
+            if(res && h2 >= h1 && h1 > 0) res.value = (h2 - h1) + 1;
+        }
+
+        async function saveSetoran(e) {
+            e.preventDefault();
+            const kat = document.getElementById('st_kat').value;
+            let detail = {}; let jmlHal = 0;
+            if(kat.includes('Ali')) {
+                detail = { jilid: document.getElementById('st_jilid').value, hal_awal: document.getElementById('st_hal1').value, hal_akhir: document.getElementById('st_hal2').value };
+                jmlHal = document.getElementById('st_jmlhal_ali').value;
+            } else {
+                detail = { juz: document.getElementById('st_juz').value, surat: document.getElementById('st_surat').value, ayat_awal: document.getElementById('st_ayat1').value, ayat_akhir: document.getElementById('st_ayat2').value };
+                jmlHal = document.getElementById('st_jmlhal_q').value;
+            }
+
+            const payload = {
+                tgl: document.getElementById('st_tgl').value,
+                jam: document.getElementById('st_jam').value,
+                id_siswa: document.getElementById('st_siswa').value,
+                kategori: kat,
+                detail_materi: JSON.stringify(detail),
+                jml_halaman: parseFloat(jmlHal),
+                predikat: document.getElementById('st_predikat').value,
+                catatan: document.getElementById('st_catatan').value,
+                id_penginput: currentUser.id
+            };
+
+            showLoading('Menyimpan Setoran...');
+            const res = await fetchAPI('insert', {sheet: 'setoran', data: payload});
+            hideLoading();
+            if(res.success) {
+                Swal.fire('Berhasil', 'Data setoran tersimpan', 'success');
+                await initApp();
+                navigate('rw_setoran'); 
+            }
+        }
+
+        function renderInputTasmi() {
+            const isPenguji = currentUser && (currentUser.is_penguji === true || String(currentUser.is_penguji).toLowerCase() === 'true' || currentUser.is_penguji === 1 || currentUser.is_penguji === '1');
+            if (currentRole === 'guru' && !isPenguji) { 
+                const ca = document.getElementById('contentArea'); if(ca) ca.innerHTML = `<div class="p-8 text-center text-red-500 font-bold bg-white rounded-xl shadow">Anda bukan Penguji Tasmi. Akses ditolak.</div>`; 
+                return; 
+            }
+            
+            let html = `
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-4 max-w-5xl mx-auto">
+                    <h2 class="text-xl font-bold text-yellow-600 mb-6 border-b pb-2"><i class="fas fa-star"></i> Input Ujian Tasmi</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6 bg-gray-50 p-4 rounded-lg">
+                        <div><label class="block text-sm font-medium mb-1">Tanggal</label><input type="date" id="ts_tgl" class="w-full border p-2 rounded" value="${new Date().toISOString().split('T')[0]}"></div>
+                        <div><label class="block text-sm font-medium mb-1">Pilih Unit</label><select id="ts_unit" onchange="const tk = document.getElementById('ts_kelas'); if(tk) tk.innerHTML = buildKelasOptions(this.value, '-- Kelas --'); loadSiswaTasmi()" class="w-full border p-2 rounded"><option value="">-- Unit --</option>${getAvailableUnits().map(u=>`<option value="${u.id}">${u.nama_unit}</option>`).join('')}</select></div>
+                        <div><label class="block text-sm font-medium mb-1">Pilih Kelas</label><select id="ts_kelas" onchange="loadSiswaTasmi()" class="w-full border p-2 rounded">${buildKelasOptions('', '-- Kelas --')}</select></div>
+                        <div><label class="block text-sm font-medium mb-1">Pilih Siswa</label><select id="ts_siswa" onchange="checkExistingTasmi()" class="w-full border p-2 rounded"><option value="">-- Siswa --</option></select></div>
+                        <div><label class="block text-sm font-medium mb-1">Pilih Juz</label><select id="ts_juz" onchange="checkExistingTasmi()" class="w-full border p-2 rounded"><option value="">-- Juz --</option>${Array.from({length:30}, (_,i)=>`<option value="${i+1}">${i+1}</option>`).join('')}</select></div>
+                    </div>
+                    <input type="hidden" id="ts_id" value="">
+                    <div id="formTasmiContainer" class="hidden">
+                        <div class="bg-yellow-50 p-4 border rounded-lg mb-4 text-xs text-yellow-800"><i class="fas fa-info-circle"></i> <b>Lulus:</b> Semua halaman terisi, rata-rata >= 75, dan tidak ada nilai < 75. <b>Sedang Ujian:</b> Halaman belum lengkap. <b>Belum Lulus:</b> Semua halaman terisi namun rata-rata/nilai halaman tidak memenuhi standar.</div>
+                        <div id="gridNilaiTasmi" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 mb-6"></div>
+                        <div class="flex justify-between items-center bg-gray-100 p-4 rounded-lg border">
+                            <div class="text-lg font-bold">Rata-rata: <span id="ts_rata" class="text-emerald-600">0</span> <span id="ts_status" class="ml-2 text-sm px-2 py-1 rounded bg-gray-300 text-gray-700">Belum</span></div>
+                            <button onclick="simpanTasmi()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded shadow font-bold">Simpan Nilai Tasmi</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            const ca = document.getElementById('contentArea'); if(ca) ca.innerHTML = html;
+        }
+
+        function loadSiswaTasmi() {
+            const uId = document.getElementById('ts_unit')?.value;
+            const klId = document.getElementById('ts_kelas')?.value;
+            const select = document.getElementById('ts_siswa');
+            if(!select) return;
+            select.innerHTML = '<option value="">-- Pilih Siswa --</option>';
+            
+            let sList = (DB.siswa||[]).filter(s => isSiswaAktif(s) && canGuruAccessSiswa(s.id));
+            if(klId) sList = sList.filter(s => s.id_kelas === klId);
+            else if(uId) sList = sList.filter(s => maps.kelas[s.id_kelas]?.id_unit === uId);
+            else sList = []; 
+            
+            sList.forEach(s => select.innerHTML += `<option value="${s.id}">${s.nama_lengkap}</option>`);
+            checkExistingTasmi();
+        }
+
+        function checkExistingTasmi() {
+            const siswaId = document.getElementById('ts_siswa')?.value;
+            const juz = parseInt(document.getElementById('ts_juz')?.value);
+            if(!siswaId || !juz) { document.getElementById('formTasmiContainer')?.classList.add('hidden'); return; }
+            
+            const existing = (DB.tasmi||[]).find(t => t.id_siswa === siswaId && parseInt(t.juz) === juz);
+            document.getElementById('ts_id').value = existing ? existing.id : '';
+            
+            let existingNilai = [];
+            if(existing) { try { existingNilai = JSON.parse(existing.nilai_per_halaman); } catch(e){} }
+            
+            const maxHal = getJuzPages(juz);
+            let html = '';
+            for(let i=0; i<maxHal; i++) {
+                const val = existingNilai[i] !== undefined ? existingNilai[i] : 0;
+                html += `<div><label class="block text-xs font-medium text-gray-600 mb-1">Halaman ${i+1}</label><input type="number" min="0" max="100" class="inp-tasmi w-full border p-2 rounded text-center font-semibold focus:ring-yellow-500" oninput="calcTasmi()" value="${val}"></div>`;
+            }
+            const gnt = document.getElementById('gridNilaiTasmi'); if(gnt) gnt.innerHTML = html;
+            document.getElementById('formTasmiContainer')?.classList.remove('hidden');
+            calcTasmi();
+        }
+
+        function calcTasmi() {
+            const inps = document.querySelectorAll('.inp-tasmi'); 
+            let sum = 0; let b75 = false; let filled = 0; let total = inps.length;
+            inps.forEach(inp => { 
+                let v = parseFloat(inp.value) || 0; 
+                if(v > 100) { inp.value = 100; v = 100; Swal.fire('Peringatan','Nilai max 100 per halaman','warning'); } 
+                if(v > 0) { filled++; if(v < 75) b75 = true; } 
+                sum += v; 
+            });
+            const rata = total > 0 ? (sum / total).toFixed(2) : 0; 
+            const elRata = document.getElementById('ts_rata'); if(elRata) elRata.innerText = rata;
+            const stEl = document.getElementById('ts_status');
+            if(stEl) {
+                if (filled < total) { stEl.innerText = "SEDANG UJIAN"; stEl.className = "ml-2 text-sm px-2 py-1 rounded bg-yellow-500 text-white"; } 
+                else {
+                    if(rata >= 75 && !b75) { stEl.innerText = "LULUS"; stEl.className = "ml-2 text-sm px-2 py-1 rounded bg-green-500 text-white"; }
+                    else { stEl.innerText = "BELUM LULUS"; stEl.className = "ml-2 text-sm px-2 py-1 rounded bg-red-500 text-white"; }
+                }
+            }
+        }
+
+        async function simpanTasmi() {
+            const sId = document.getElementById('ts_siswa').value;
+            if(!sId) return Swal.fire('Oops','Pilih siswa dulu','warning');
+            const inputs = document.querySelectorAll('.inp-tasmi');
+            let nilaiArr = []; inputs.forEach(inp => nilaiArr.push(parseFloat(inp.value) || 0));
+            
+            const exId = document.getElementById('ts_id').value;
+            let stText = document.getElementById('ts_status').innerText;
+            let finalStatus = 'Lulus';
+            if(stText.includes('BELUM')) finalStatus = 'Belum Lulus';
+            else if(stText.includes('SEDANG')) finalStatus = 'Sedang Ujian';
+
+            const p = { tgl: document.getElementById('ts_tgl').value, id_siswa: sId, juz: document.getElementById('ts_juz').value, nilai_per_halaman: JSON.stringify(nilaiArr), rata_rata: parseFloat(document.getElementById('ts_rata').innerText), status: finalStatus, id_penguji: currentUser.id };
+
+            showLoading(exId ? 'Memperbarui Nilai Tasmi...' : 'Menyimpan Nilai Tasmi...');
+            const res = await fetchAPI(exId ? 'update' : 'insert', {sheet: 'tasmi', id: exId, data: p});
+            hideLoading();
+            if(res.success) { Swal.fire('Berhasil', 'Nilai Tasmi tersimpan', 'success'); await initApp(); navigate('dt_tasmi'); }
+        }
+
+        function renderDataTasmi() {
+            const isPenguji = currentUser && (currentUser.is_penguji === true || String(currentUser.is_penguji).toLowerCase() === 'true' || currentUser.is_penguji === 1 || currentUser.is_penguji === '1');
+            if (currentRole === 'guru' && !isPenguji) { 
+                const ca = document.getElementById('contentArea'); if(ca) ca.innerHTML = `<div class="p-8 text-center text-red-500 font-bold bg-white rounded-xl shadow">Anda bukan Penguji Tasmi. Akses ditolak.</div>`; 
+                return; 
+            }
+            
+            let html = `
+                <div class="bg-white rounded-xl shadow-sm border p-5 mb-4">
+                    <h2 class="text-lg font-bold mb-4">Data Riwayat & Progres Ujian Tasmi</h2>
+                    <div class="flex flex-wrap gap-2 mb-4 bg-gray-50 p-3 rounded-lg border">
+                        <select id="filterUnitDtTasmi" class="border rounded p-1.5 text-sm outline-none focus:ring focus:ring-emerald-200" onchange="const fk = document.getElementById('filterKelasDtTasmi'); if(fk) fk.innerHTML = buildKelasOptions(this.value, 'Semua Kelas'); renderTableDataTasmi()">
+                            <option value="">Semua Unit</option>${getAvailableUnits().map(u=>`<option value="${u.id}">${u.nama_unit}</option>`).join('')}
+                        </select>
+                        <select id="filterKelasDtTasmi" class="border rounded p-1.5 text-sm outline-none focus:ring focus:ring-emerald-200" onchange="renderTableDataTasmi()">${buildKelasOptions('', 'Semua Kelas')}</select>
+                        <select id="filterPengujiDtTasmi" class="border rounded p-1.5 text-sm outline-none focus:ring focus:ring-emerald-200" onchange="renderTableDataTasmi()">
+                            <option value="">Semua Penguji</option>${(DB.guru||[]).filter(g=>g.is_penguji).map(g=>`<option value="${g.id}">${g.nama_lengkap}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="overflow-x-auto" id="dtTasmiTableContainer"></div>
+                </div>
+            `;
+            const ca = document.getElementById('contentArea'); if(ca) ca.innerHTML = html;
+            renderTableDataTasmi();
+        }
+
+        function renderTableDataTasmi() {
+            let data = (DB.tasmi||[]).filter(t => canGuruAccessSiswa(t.id_siswa));
+            if(currentRole === 'ortu') {
+                const anakIds = (currentUser.anak||[]).map(a=>a.id);
+                data = data.filter(t => anakIds.includes(t.id_siswa));
+            }
+            
+            const fUnit = document.getElementById('filterUnitDtTasmi')?.value;
+            const fKelas = document.getElementById('filterKelasDtTasmi')?.value;
+            const fPenguji = document.getElementById('filterPengujiDtTasmi')?.value;
+            
+            if(fUnit) data = data.filter(t => maps.kelas[getSiswaObj(t.id_siswa).id_kelas]?.id_unit === fUnit);
+            if(fKelas) data = data.filter(t => getSiswaObj(t.id_siswa).id_kelas === fKelas);
+            if(fPenguji) data = data.filter(t => t.id_penguji === fPenguji);
+            
+            data.sort((a,b) => new Date(b.tgl) - new Date(a.tgl));
+
+            let html = `
+                <table class="dt-table text-sm whitespace-nowrap">
+                    <thead><tr><th>Update Terakhir</th><th>Nama Siswa (Kelas)</th><th>Ujian Juz</th><th>Progres Pengisian</th><th>Rata-rata</th><th>Status</th><th>Penguji</th>${['admin','guru'].includes(currentRole) ? '<th>Aksi</th>' : ''}</tr></thead>
+                    <tbody>
+                        ${data.map(d => {
+                            const sis = getSiswaObj(d.id_siswa);
+                            let arr = []; try { arr = JSON.parse(d.nilai_per_halaman); } catch(e){}
+                            const halDiisi = arr.filter(n => n > 0).length;
+                            const maxHal = getJuzPages(d.juz);
+                            const persentase = maxHal > 0 ? (halDiisi / maxHal) * 100 : 0;
+                            let dStatus = d.status;
+                            if (dStatus === 'Belum') dStatus = (halDiisi < maxHal) ? 'Sedang Ujian' : 'Belum Lulus'; 
+                            let badgeClass = dStatus === 'Lulus' ? 'bg-green-500' : (dStatus === 'Belum Lulus' ? 'bg-red-500' : 'bg-yellow-500');
+
+                            return `<tr>
+                                <td>${d.tgl.split('-').reverse().join('-')}</td>
+                                <td><b>${sis.nama_lengkap || 'Siswa Dihapus'}</b><br><span class="text-xs text-gray-500">${getNamaKelas(sis.id_kelas)}</span></td>
+                                <td>Juz ${d.juz}</td>
+                                <td class="w-48">
+                                    <div class="w-full bg-gray-200 rounded-full h-2 mb-1"><div class="bg-blue-600 h-2 rounded-full" style="width: ${persentase}%"></div></div>
+                                    <span class="text-xs text-gray-600">${halDiisi} dari ${maxHal} Hal Terisi</span>
+                                </td>
+                                <td class="font-bold">${d.rata_rata}</td>
+                                <td><span class="px-2 py-1 rounded text-xs text-white font-medium ${badgeClass}">${dStatus}</span></td>
+                                <td class="text-gray-600">${getNamaGuru(d.id_penguji)}</td>
+                                ${['admin','guru'].includes(currentRole) ? `<td><button onclick="lanjutkanTasmi('${d.id_siswa}', '${d.juz}')" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded text-xs shadow"><i class="fas fa-edit"></i> Lanjutkan</button></td>` : ''}
+                            </tr>`;
+                        }).join('')}
+                        ${data.length === 0 ? '<tr><td colspan="8" class="text-center py-4 text-gray-500">Belum ada data ujian tasmi dengan filter ini</td></tr>' : ''}
+                    </tbody>
+                </table>
+            `;
+            const cont = document.getElementById('dtTasmiTableContainer'); if(cont) cont.innerHTML = html;
+        }
+
+        function lanjutkanTasmi(idSiswa, juz) {
+            navigate('in_tasmi');
+            setTimeout(() => {
+                const sis = getSiswaObj(idSiswa);
+                const tk = document.getElementById('ts_kelas'); if(tk) tk.value = sis.id_kelas;
+                loadSiswaTasmi();
+                const ts = document.getElementById('ts_siswa'); if(ts) ts.value = idSiswa;
+                const tj = document.getElementById('ts_juz'); if(tj) tj.value = juz;
+                checkExistingTasmi();
+            }, 100);
+        }
+
+        function renderRiwayatSetoran() {
+            const isGuruTTQ = currentUser && (currentUser.is_guru_ttq === true || String(currentUser.is_guru_ttq).toLowerCase() === 'true' || currentUser.is_guru_ttq === 1 || currentUser.is_guru_ttq === '1');
+            if (currentRole === 'guru' && !isGuruTTQ) { 
+                const ca = document.getElementById('contentArea'); if(ca) ca.innerHTML = `<div class="p-8 text-center text-red-500 font-bold bg-white rounded-xl shadow">Anda bukan Guru TTQ. Akses ditolak.</div>`; 
+                return; 
+            }
+
+            let html = `
+                <div class="bg-white rounded-xl shadow-sm border p-5">
+                    <h2 class="text-lg font-bold mb-4">Riwayat Setoran</h2>
+                    <div class="flex flex-wrap gap-2 mb-4 bg-gray-50 p-3 rounded-lg border">
+                        <select id="filterWaktuRw" class="border rounded p-1.5 text-sm outline-none focus:ring focus:ring-emerald-200" onchange="renderTableRiwayatSetoran()"><option value="semua">Semua Waktu</option><option value="bulan_ini">Bulan Ini</option><option value="hari_ini">Hari Ini</option></select>
+                        <select id="filterUnitRw" class="border rounded p-1.5 text-sm outline-none focus:ring focus:ring-emerald-200" onchange="const fk = document.getElementById('filterKelasRw'); if(fk) fk.innerHTML = buildKelasOptions(this.value, 'Semua Kelas'); renderTableRiwayatSetoran()"><option value="">Semua Unit</option>${getAvailableUnits().map(u=>`<option value="${u.id}">${u.nama_unit}</option>`).join('')}</select>
+                        <select id="filterKelasRw" class="border rounded p-1.5 text-sm outline-none focus:ring focus:ring-emerald-200" onchange="renderTableRiwayatSetoran()">${buildKelasOptions('', 'Semua Kelas')}</select>
+                    </div>
+                    <div class="overflow-x-auto" id="rwTableContainer"></div>
+                </div>
+            `;
+            const ca = document.getElementById('contentArea'); if(ca) ca.innerHTML = html;
+            renderTableRiwayatSetoran();
+        }
+
+        function renderTableRiwayatSetoran() {
+            let data = (DB.setoran||[]).filter(d => canGuruAccessSiswa(d.id_siswa));
+            const fWaktu = document.getElementById('filterWaktuRw')?.value;
+            const fUnit = document.getElementById('filterUnitRw')?.value;
+            const fKelas = document.getElementById('filterKelasRw')?.value;
+            
+            if(currentRole === 'guru') data = data.filter(s => s.id_penginput === currentUser.id);
+            data = filterByWaktu(data, fWaktu, 'tgl');
+            if(fUnit) data = data.filter(s => maps.kelas[getSiswaObj(s.id_siswa).id_kelas]?.id_unit === fUnit);
+            if(fKelas) data = data.filter(s => getSiswaObj(s.id_siswa).id_kelas === fKelas);
+            data.sort((a,b) => new Date(b.tgl + 'T' + (b.jam||'00:00')) - new Date(a.tgl + 'T' + (a.jam||'00:00')));
+
+            let html = `
+                <table class="dt-table text-sm whitespace-nowrap">
+                    <thead><tr><th>Waktu</th><th>Nama Siswa (Kelas)</th><th>Kategori</th><th>Materi</th><th>Jumlah Halaman</th><th>Predikat</th>${currentRole !== 'guru' ? '<th>Penginput</th>' : ''}${currentRole==='admin'?'<th>Aksi</th>':''}</tr></thead>
+                    <tbody>
+                        ${data.map(d => {
+                            const sis = getSiswaObj(d.id_siswa);
+                            let mat = '';
+                            try{ const dt = JSON.parse(d.detail_materi); mat = dt.juz ? `Juz ${dt.juz}, ${dt.surat} (Ayat ${dt.ayat_awal}-${dt.ayat_akhir})` : `${dt.jilid} Hal ${dt.hal_awal}-${dt.hal_akhir}`; }catch(e){}
+                            return `<tr>
+                                <td>${d.tgl.split('-').reverse().join('-')} ${d.jam}</td>
+                                <td><b>${sis.nama_lengkap || 'Siswa Dihapus'}</b><br><span class="text-xs text-gray-500">${getNamaKelas(sis.id_kelas)}</span></td>
+                                <td><span class="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">${d.kategori}</span></td>
+                                <td class="text-gray-600">${mat}</td>
+                                <td>${d.jml_halaman} Hal</td>
+                                <td class="font-bold text-center">${d.predikat.split(' ')[0]}</td>
+                                ${currentRole !== 'guru' ? `<td class="text-gray-600">${getNamaGuru(d.id_penginput)}</td>` : ''}
+                                ${currentRole==='admin'?`<td><button onclick="deleteData('setoran','${d.id}')" class="text-red-500 p-1"><i class="fas fa-trash"></i></button></td>` : ''}
+                            </tr>`;
+                        }).join('')}
+                        ${data.length === 0 ? `<tr><td colspan="${currentRole !== 'guru' ? 8 : 7}" class="text-center py-4 text-gray-500">Belum ada riwayat setoran sesuai filter</td></tr>` : ''}
+                    </tbody>
+                </table>
+            `;
+            const rwt = document.getElementById('rwTableContainer'); if(rwt) rwt.innerHTML = html;
+        }
+
+        function renderProgressTasmi() {
+            let html = `
+                <div class="bg-white rounded-xl shadow-sm border p-5 mb-4">
+                    <h2 class="text-lg font-bold mb-4 text-emerald-800"><i class="fas fa-chart-pie"></i> Progress Ujian Tasmi</h2>
+                    <div class="flex flex-wrap gap-2 mb-6 bg-gray-50 p-3 rounded-lg border">
+                        <select id="filterUnitPrTasmi" class="border rounded p-1.5 text-sm outline-none focus:ring focus:ring-emerald-200" onchange="const fk = document.getElementById('filterKelasPrTasmi'); if(fk) fk.innerHTML = buildKelasOptions(this.value, 'Semua Kelas'); renderTableProgressTasmi()"><option value="">Semua Unit</option>${getAvailableUnits().map(u=>`<option value="${u.id}">${u.nama_unit}</option>`).join('')}</select>
+                        <select id="filterKelasPrTasmi" class="border rounded p-1.5 text-sm outline-none focus:ring focus:ring-emerald-200" onchange="renderTableProgressTasmi()">${buildKelasOptions('', 'Semua Kelas')}</select>
+                    </div>
+                    <div class="w-full h-80 mb-8 border-b pb-8"><canvas id="progressChartCanvas"></canvas></div>
+                    <h3 class="text-md font-bold mb-3 text-gray-700"><i class="fas fa-table text-gray-400"></i> Detail Matriks Kelulusan Siswa</h3>
+                    <div class="overflow-x-auto" id="prTasmiTableContainer"></div>
+                </div>
+            `;
+            const ca = document.getElementById('contentArea'); if(ca) ca.innerHTML = html;
+            renderTableProgressTasmi();
+        }
+
+        function renderTableProgressTasmi() {
+            const fUnit = document.getElementById('filterUnitPrTasmi')?.value;
+            const fKelas = document.getElementById('filterKelasPrTasmi')?.value;
+            
+            let dataSiswa = (DB.siswa||[]).filter(s => isSiswaAktif(s) && canGuruAccessSiswa(s.id));
+            if(fUnit) dataSiswa = dataSiswa.filter(s => maps.kelas[s.id_kelas]?.id_unit === fUnit);
+            if(fKelas) dataSiswa = dataSiswa.filter(s => s.id_kelas === fKelas);
+
+            const tasmiStatusMap = new Map();
+            (DB.tasmi||[]).forEach(t => tasmiStatusMap.set(t.id_siswa + '_' + t.juz, t.status));
+
+            const siswaLulusCount = {};
+            dataSiswa.forEach(s => {
+                let count = 0;
+                for(let i=1; i<=30; i++) if(tasmiStatusMap.get(s.id + '_' + i) === 'Lulus') count++;
+                siswaLulusCount[s.id] = count;
+            });
+
+            dataSiswa.sort((a, b) => {
+                const diff = siswaLulusCount[b.id] - siswaLulusCount[a.id];
+                if (diff === 0) return (a.nama_lengkap || '').localeCompare(b.nama_lengkap || '');
+                return diff;
+            });
+
+            let chartLabels = [], dataLulusPerJuz = [], dataSedangPerJuz = [], dataBelumPerJuz = [];
+            for (let i = 1; i <= 30; i++) {
+                chartLabels.push('Juz ' + i);
+                let countLulus = 0, countSedang = 0;
+                dataSiswa.forEach(s => {
+                    const status = tasmiStatusMap.get(s.id + '_' + i);
+                    if (status === 'Lulus') countLulus++;
+                    else if (status === 'Sedang Ujian') countSedang++;
+                });
+                dataLulusPerJuz.push(countLulus);
+                dataSedangPerJuz.push(countSedang);
+                dataBelumPerJuz.push(dataSiswa.length - countLulus - countSedang);
+            }
+
+            const canvasEl = document.getElementById('progressChartCanvas');
+            if(canvasEl) {
+                const ctx = canvasEl.getContext('2d');
+                if (progressChartInstance) progressChartInstance.destroy();
+                progressChartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: { labels: chartLabels, datasets: [
+                            { label: 'Lulus', data: dataLulusPerJuz, backgroundColor: '#10b981', borderRadius: 4 },
+                            { label: 'Sedang Ujian', data: dataSedangPerJuz, backgroundColor: '#f59e0b', borderRadius: 4 },
+                            { label: 'Belum', data: dataBelumPerJuz, backgroundColor: '#ef4444', borderRadius: 4 }
+                    ]},
+                    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, ticks: { stepSize: 1 }, title: { display: true, text: 'Jumlah Siswa' } } } }
+                });
+            }
+
+            let html = `
+                <table class="dt-table text-sm text-center whitespace-nowrap">
+                    <thead><tr>
+                        <th class="text-left min-w-[200px] border-r">Nama Siswa</th>
+                        <th class="px-2 text-xs font-bold text-emerald-700 bg-emerald-100 border-r" title="Jumlah Juz Lulus">Lulus</th>
+                        <th class="px-2 text-xs font-bold text-amber-700 bg-amber-100 border-r" title="Jumlah Juz Sedang Ujian">Sedang</th>
+                        <th class="px-2 text-xs font-bold text-red-700 bg-red-100 border-r" title="Jumlah Juz Belum Lulus">Belum</th>
+                        ${Array.from({length:30},(_,i)=>`<th class="px-1 text-xs" title="Juz ${i+1}">${i+1}</th>`).join('')}
+                    </tr></thead>
+                    <tbody>
+                        ${dataSiswa.map((s, index) => {
+                            let tdJuz = '', lulusCount = 0, sedangCount = 0;
+                            for(let i=1; i<=30; i++) {
+                                const status = tasmiStatusMap.get(s.id + '_' + i);
+                                if (status === 'Lulus') { lulusCount++; tdJuz += `<td class="p-1"><i class="fas fa-check-circle text-green-500" title="Lulus"></i></td>`; } 
+                                else if (status === 'Sedang Ujian') { sedangCount++; tdJuz += `<td class="p-1"><i class="fas fa-hourglass-half text-amber-500" title="Sedang Ujian"></i></td>`; } 
+                                else { tdJuz += `<td class="p-1"><span class="text-gray-300">-</span></td>`; }
+                            }
+                            let belumCount = 30 - lulusCount - sedangCount;
+                            let badgeHtml = '';
+                            if (lulusCount > 0 && index < 5) {
+                                const rank = index + 1;
+                                if(rank === 1) badgeHtml = '<i class="fas fa-trophy text-yellow-500 ml-1.5 text-lg" title="Peringkat 1 Tasmi"></i>';
+                                else if(rank === 2) badgeHtml = '<i class="fas fa-medal text-gray-400 ml-1.5 text-base" title="Peringkat 2 Tasmi"></i>';
+                                else if(rank === 3) badgeHtml = '<i class="fas fa-medal text-amber-600 ml-1.5 text-base" title="Peringkat 3 Tasmi"></i>';
+                                else badgeHtml = `<span class="ml-1.5 bg-gradient-to-r from-emerald-100 to-emerald-200 text-emerald-800 text-[10px] px-2 py-0.5 rounded-md font-bold shadow-sm relative -top-0.5">Top ${rank}</span>`;
+                            }
+                            return `<tr>
+                                <td class="text-left border-r whitespace-nowrap min-w-[200px]"><b>${s.nama_lengkap || 'Siswa Dihapus'}</b> ${badgeHtml}<br><span class="text-xs text-gray-400">${getNamaKelas(s.id_kelas)}</span></td>
+                                <td class="font-bold text-emerald-700 bg-emerald-50 border-r text-base">${lulusCount}</td>
+                                <td class="font-bold text-amber-700 bg-amber-50 border-r text-base">${sedangCount}</td>
+                                <td class="font-bold text-red-700 bg-red-50 border-r text-base">${belumCount}</td>
+                                ${tdJuz}
+                            </tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>`;
+            const prc = document.getElementById('prTasmiTableContainer'); if(prc) prc.innerHTML = html;
+        }
+
+        function renderDetailTasmi() {
+            let filterHtml = currentRole === 'ortu' ? 
+                `<select id="dtlSiswa" class="border rounded p-2 text-sm w-full md:w-auto bg-gray-50" onchange="showDetailTasmiSiswa()"><option value="">-- Pilih Anak --</option><option value="semua">Semua Anak Saya</option>${(currentUser.anak||[]).map(a => `<option value="${a.id}">${a.nama_lengkap}</option>`).join('')}</select>` :
+                `<select id="dtlUnit" class="border rounded p-2 text-sm w-full md:w-auto" onchange="const dk = document.getElementById('dtlKelas'); if(dk) dk.innerHTML = buildKelasOptions(this.value, '-- Pilih Kelas --'); loadSiswaDetailTasmi()"><option value="">-- Pilih Unit --</option>${getAvailableUnits().map(u=>`<option value="${u.id}">${u.nama_unit}</option>`).join('')}</select>
+                 <select id="dtlKelas" class="border rounded p-2 text-sm w-full md:w-auto" onchange="loadSiswaDetailTasmi()">${buildKelasOptions('', '-- Pilih Kelas --')}</select>
+                 <select id="dtlSiswa" class="border rounded p-2 text-sm w-full md:w-auto bg-gray-100" onchange="showDetailTasmiSiswa()"><option value="">-- Pilih Siswa --</option></select>`;
+            
+            document.getElementById('contentArea').innerHTML = `
+                <div class="bg-white rounded-xl shadow-sm border p-5 mb-4">
+                    <h2 class="text-lg font-bold mb-4 text-emerald-800"><i class="fas fa-file-signature"></i> Detail Nilai Ujian Tasmi</h2>
+                    <div class="flex flex-wrap gap-2 mb-6 bg-gray-50 p-4 rounded-lg border">${filterHtml}</div>
+                    <div id="detailTasmiContent"></div>
+                </div>`;
+        }
+
+        function loadSiswaDetailTasmi() {
+            const uId = document.getElementById('dtlUnit')?.value;
+            const kId = document.getElementById('dtlKelas')?.value;
+            const sel = document.getElementById('dtlSiswa');
+            if(!sel) return;
+            sel.innerHTML = '<option value="">-- Pilih Siswa --</option>';
+            
+            let filtered = (DB.siswa||[]).filter(s => canGuruAccessSiswa(s.id));
+            if(kId) filtered = filtered.filter(s => s.id_kelas === kId);
+            else if(uId) filtered = filtered.filter(s => maps.kelas[s.id_kelas]?.id_unit === uId);
+
+            if(uId || kId) {
+                sel.innerHTML += '<option value="semua">-- Tampilkan Semua Sesuai Filter --</option>';
+                filtered.forEach(s => { const st = s.status_siswa !== 'Aktif' ? `(${s.status_siswa})` : ''; sel.innerHTML += `<option value="${s.id}">${s.nama_lengkap} ${st}</option>`; });
+                sel.classList.remove('bg-gray-100');
+            } else {
+                sel.classList.add('bg-gray-100');
+            }
+            const dtc = document.getElementById('detailTasmiContent'); if(dtc) dtc.innerHTML = ''; 
+        }
+
+        function showDetailTasmiSiswa() {
+            const sId = document.getElementById('dtlSiswa')?.value;
+            const kId = document.getElementById('dtlKelas')?.value;
+            const uId = document.getElementById('dtlUnit')?.value;
+            const content = document.getElementById('detailTasmiContent');
+            if(!sId || !content) return;
+
+            let targetSiswa = [];
+            if (sId === 'semua') {
+                if (currentRole === 'ortu') targetSiswa = currentUser.anak;
+                else {
+                    targetSiswa = (DB.siswa||[]).filter(s => canGuruAccessSiswa(s.id));
+                    if(kId) targetSiswa = targetSiswa.filter(s => s.id_kelas === kId);
+                    else if(uId) targetSiswa = targetSiswa.filter(s => maps.kelas[s.id_kelas]?.id_unit === uId);
+                }
+            } else {
+                targetSiswa = [(DB.siswa||[]).find(x=>x.id===sId)].filter(s => canGuruAccessSiswa(s.id));
+            }
+
+            if(targetSiswa.length === 0) { content.innerHTML = '<div class="text-center py-4 text-gray-500">Tidak ada data.</div>'; return; }
+
+            let finalHtml = `<div class="w-full bg-white">`;
+            targetSiswa.forEach((sis, index) => {
+                const tasmiSiswa = (DB.tasmi||[]).filter(t => t.id_siswa === sis.id);
+                let lulusCount = 0, belumCount = 0, juzCards = '';
+                
+                for(let i=1; i<=30; i++) {
+                    const tData = tasmiSiswa.find(t => parseInt(t.juz) === i);
+                    let statusBadge = '<span class="px-2 py-0.5 bg-gray-200 text-gray-500 rounded text-xs font-semibold">Belum Ujian</span>';
+                    let pagesHtml = '';
+                    
+                    if (tData) {
+                        if (tData.status === 'Lulus') { statusBadge = '<span class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-bold"><i class="fas fa-check"></i> Lulus</span>'; lulusCount++; } 
+                        else if (tData.status === 'Sedang Ujian') { statusBadge = '<span class="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs font-bold">Sedang Ujian</span>'; } 
+                        else { statusBadge = '<span class="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-bold">Belum Lulus</span>'; }
+                        
+                        let nls = []; try { nls = JSON.parse(tData.nilai_per_halaman); } catch(e){}
+                        pagesHtml += `<div class="grid grid-cols-5 sm:grid-cols-10 gap-2 mt-4">`;
+                        for(let p=0; p<getJuzPages(i); p++) {
+                            const val = nls[p];
+                            const valClass = val > 0 ? (val >= 75 ? 'bg-emerald-50 text-emerald-700 font-bold border-emerald-300' : 'bg-red-50 text-red-700 font-bold border-red-300') : 'bg-gray-100 text-gray-400 border-gray-200';
+                            pagesHtml += `<div class="border rounded text-center py-1.5 flex flex-col justify-center ${valClass}"><span class="text-[10px] opacity-70 mb-0.5">Hal ${p+1}</span><span class="text-sm">${val > 0 ? val : '-'}</span></div>`;
+                        }
+                        pagesHtml += `</div><div class="mt-4 pt-3 border-t border-gray-100 text-xs flex justify-between items-center text-gray-600"><span>Penguji: <b>${getNamaGuru(tData.id_penguji)}</b></span><span class="bg-gray-100 px-2 py-1 rounded">Rata-rata: <b class="${tData.rata_rata >= 75 ? 'text-emerald-600' : 'text-red-600'} text-sm">${tData.rata_rata}</b></span></div>`;
+                    } else {
+                        pagesHtml = `<div class="flex items-center justify-center h-20 bg-gray-50 rounded mt-3 border border-dashed border-gray-200"><p class="text-xs text-gray-400 italic mb-0">Belum ada data</p></div>`;
+                    }
+                    juzCards += `<div class="border border-gray-200 rounded-xl p-4 shadow-sm bg-white hover:shadow-md transition"><div class="flex justify-between items-center border-b border-gray-100 pb-3"><h4 class="font-bold text-gray-800 text-lg m-0">Juz ${i}</h4>${statusBadge}</div>${pagesHtml}</div>`;
+                }
+
+                finalHtml += `
+                    <div class="${index < targetSiswa.length - 1 ? 'border-b-4 border-dashed border-gray-300 mb-8 pb-8' : ''} pt-2">
+                        <div class="flex flex-col lg:flex-row gap-6 mb-8">
+                            <div class="bg-gradient-to-br from-emerald-800 to-emerald-900 text-white rounded-xl p-6 shadow-lg w-full lg:w-1/2 flex items-center gap-5">
+                                <div class="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center text-3xl font-bold border-2 border-white/50 flex-shrink-0">${sis.nama_lengkap.charAt(0)}</div>
+                                <div class="flex-1"><h3 class="text-xl font-bold mb-1">${sis.nama_lengkap}</h3><div class="text-emerald-100 text-sm flex gap-3"><span><i class="fas fa-school w-4"></i> ${getNamaKelas(sis.id_kelas)}</span></div></div>
+                            </div>
+                            <div class="flex gap-4 w-full lg:w-1/2">
+                                <div class="flex-1 bg-white border border-emerald-200 rounded-xl p-4 shadow-md flex flex-col items-center justify-center text-center relative overflow-hidden"><div class="absolute top-0 left-0 w-full h-1 bg-emerald-500"></div><span class="text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">Lulus</span><span class="text-4xl font-black text-emerald-600">${lulusCount} <span class="text-base">Juz</span></span></div>
+                                <div class="flex-1 bg-white border border-red-200 rounded-xl p-4 shadow-md flex flex-col items-center justify-center text-center relative overflow-hidden"><div class="absolute top-0 left-0 w-full h-1 bg-red-500"></div><span class="text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">Belum Lulus</span><span class="text-4xl font-black text-red-500">${30-lulusCount} <span class="text-base">Juz</span></span></div>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">${juzCards}</div>
+                    </div>`;
+            });
+            content.innerHTML = finalHtml + `</div>`;
+        }
+
+        function renderPengaturan() {
+            let html = `<div class="bg-white rounded-xl shadow-sm border p-5 max-w-2xl"><h2 class="text-lg font-bold mb-4">Pengaturan Sistem</h2><form id="formSetting" onsubmit="saveSettings(event)" class="space-y-4">`;
+            (DB.pengaturan||[]).filter(p => p.key_setting !== 'nama_kepsek' && p.key_setting !== 'nip_kepsek').forEach(p => {
+                html += `<div><label class="block text-sm font-medium text-gray-700 capitalize">${p.key_setting.replace(/_/g, ' ')}</label><input type="text" id="set_${p.key_setting}" value="${p.value_setting}" class="w-full border p-2 rounded focus:ring-emerald-500"></div>`;
+            });
+            html += `<button type="submit" class="bg-emerald-600 text-white px-4 py-2 rounded shadow">Simpan Pengaturan</button></form></div>`;
+            const ca = document.getElementById('contentArea'); if(ca) ca.innerHTML = html;
+        }
+        
+        async function saveSettings(e) {
+            e.preventDefault(); showLoading("Menyimpan...");
+            for(let p of DB.pengaturan) {
+                const el = document.getElementById(`set_${p.key_setting}`);
+                if (el && el.value !== p.value_setting) await fetchAPI('update', {sheet:'pengaturan', id: p.key_setting, data: {value_setting: el.value}});
+            }
+            hideLoading(); Swal.fire('Berhasil','Pengaturan disimpan','success'); await initApp();
+        }
+
+        // ============================================================================
+        // LAPORAN INDIVIDU (KHUSUS ADMIN)
+        // ============================================================================
+        function renderLaporanIndividu() {
+            const optUnit = getAvailableUnits().map(u=>`<option value="${u.id}">${u.nama_unit}</option>`).join('');
+            const optHalSekolah = (DB.halaqoh||[]).filter(h=>h.kategori_halaqoh !== 'Asrama').map(h=>`<option value="${h.id}">${h.nama_halaqoh}</option>`).join('');
+            const optHalAsrama = (DB.halaqoh||[]).filter(h=>h.kategori_halaqoh === 'Asrama').map(h=>`<option value="${h.id}">${h.nama_halaqoh}</option>`).join('');
+            let optHalaqoh = '';
+            if(optHalSekolah) optHalaqoh += `<optgroup label="🏫 Reguler">${optHalSekolah}</optgroup>`;
+            if(optHalAsrama) optHalaqoh += `<optgroup label="🏡 Asrama">${optHalAsrama}</optgroup>`;
+
+            let fH = `<select id="lap_u" class="w-full md:w-auto border p-2 rounded" onchange="document.getElementById('lap_k').innerHTML = buildKelasOptions(this.value, '-- Pilih Kelas --'); loadSiswaLap()"><option value="">-- Pilih Unit --</option>${optUnit}</select>
+                      <select id="lap_k" class="w-full md:w-auto border p-2 rounded" onchange="loadSiswaLap()">${buildKelasOptions('', '-- Pilih Kelas --')}</select>
+                      <select id="lap_h" class="w-full md:w-auto border p-2 rounded" onchange="loadSiswaLap()"><option value="">-- Pilih Halaqoh --</option>${optHalaqoh}</select>
+                      <select id="lap_s" class="w-full md:w-auto border p-2 rounded bg-gray-50"><option value="">-- Pilih Siswa --</option></select>`;
+            
+            document.getElementById('contentArea').innerHTML = `<div class="bg-white rounded-xl shadow-sm border p-5 mb-4 no-print"><h2 class="text-lg font-bold mb-4">Cetak Rapor Individu / Massal (Khusus Admin)</h2><div class="flex flex-wrap gap-2 mb-4">${fH}<select id="lap_p" class="w-full md:w-auto border p-2 rounded"><option value="semua">Semua Waktu</option><option value="bulan_ini">Bulan Ini</option></select><button onclick="generateRapor()" class="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded shadow font-bold transition"><i class="fas fa-search"></i> Tampilkan Rapor</button></div></div><div id="raporContainer" class="hidden"></div>`;
+            loadSiswaLap();
+        }
+        
+        function loadSiswaLap() { 
+            const uId = document.getElementById('lap_u')?.value;
+            const kId = document.getElementById('lap_k')?.value; 
+            const hId = document.getElementById('lap_h')?.value; 
+            const sel = document.getElementById('lap_s'); 
+            
+            let filteredSiswa = (DB.siswa||[]).filter(isSiswaAktif);
+            if (uId) filteredSiswa = filteredSiswa.filter(s => maps.kelas[s.id_kelas]?.id_unit === uId);
+            if (kId) filteredSiswa = filteredSiswa.filter(s => s.id_kelas === kId);
+            if (hId) filteredSiswa = filteredSiswa.filter(s => s.id_halaqoh === hId || s.id_halaqoh_asrama === hId);
+
+            sel.innerHTML = '<option value="">-- Pilih Siswa --</option>'; 
+            if (uId || kId || hId) {
+                if(filteredSiswa.length > 0) {
+                    sel.innerHTML += '<option value="semua" class="font-bold text-emerald-700">-- Cetak Semua Sesuai Filter --</option>';
+                }
+                filteredSiswa.forEach(s => {
+                    sel.innerHTML += `<option value="${s.id}">${s.nama_lengkap}</option>`;
+                });
+                sel.classList.remove('bg-gray-50'); 
+            } else {
+                sel.classList.add('bg-gray-50'); 
+            }
+            document.getElementById('raporContainer').classList.add('hidden');
+        }
+
+        function generateRapor() {
+            const idVal = document.getElementById('lap_s').value; 
+            const fW = document.getElementById('lap_p').value;
+            if(!idVal) return Swal.fire('Oops','Silakan pilih filter (Kelas/Unit/Halaqoh) kemudian pilih siswa atau opsi cetak semua','warning');
+            
+            let targetSiswa = [];
+            if (idVal === 'semua') {
+                const uId = document.getElementById('lap_u')?.value;
+                const kId = document.getElementById('lap_k')?.value;
+                const hId = document.getElementById('lap_h')?.value;
+                targetSiswa = (DB.siswa||[]).filter(isSiswaAktif);
+                if(uId) targetSiswa = targetSiswa.filter(s => maps.kelas[s.id_kelas]?.id_unit === uId);
+                if(kId) targetSiswa = targetSiswa.filter(s => s.id_kelas === kId);
+                if(hId) targetSiswa = targetSiswa.filter(s => s.id_halaqoh === hId || s.id_halaqoh_asrama === hId);
+            } else {
+                targetSiswa = [getSiswaObj(idVal)];
+            }
+
+            if(targetSiswa.length === 0) return Swal.fire('Oops','Tidak ada data siswa yang ditemukan pada filter ini','warning');
+            if(targetSiswa.length > 40) return Swal.fire('Data Terlalu Besar', 'Maksimal cetak massal adalah 40 siswa per sesi agar PDF tidak blank. Silakan pilih spesifik per Kelas atau per Halaqoh.', 'warning');
+
+            let finalHtml = `<div class="canvas-cetak" id="canvasCetak">`;
+            const urlLogo = getSetting('url_logo');
+
+            targetSiswa.forEach((sis, index) => {
+                let dRS = filterByWaktu((DB.setoran||[]).filter(s => s.id_siswa === sis.id), fW, 'tgl');
+                let zC = 0, zH = 0, mC = 0, mH = 0, tC = 0, tH = 0, ttH = 0;
+                dRS.forEach(d => { 
+                    const h = parseFloat(d.jml_halaman||0); ttH += h; 
+                    if(d.kategori === 'Ziyadah') { zC++; zH += h; } 
+                    else if(d.kategori === 'Murojaah') { mC++; mH += h; } 
+                    else if(d.kategori.includes('Tahsin')) { tC++; tH += h; } 
+                });
+                
+                const waliKelasName = getWaliKelas(sis.id_kelas);
+                const halaqohObj = (DB.halaqoh||[]).find(h => h.id === sis.id_halaqoh);
+                const guruHalaqohName = halaqohObj ? getNamaGuru(halaqohObj.id_guru_utama) : '-';
+
+                const kelasObj = maps.kelas[sis.id_kelas];
+                const unitObj = kelasObj ? maps.unit[kelasObj.id_unit] : null;
+                
+                const namaSekolahDyn = (unitObj && unitObj.nama_sekolah_unit) ? unitObj.nama_sekolah_unit : (getSetting('nama_sekolah') || '-');
+                const namaKepsekDyn = (unitObj && unitObj.nama_kepsek) ? unitObj.nama_kepsek : '-';
+                const nipKepsekDyn = (unitObj && unitObj.nip_kepsek) ? unitObj.nip_kepsek : '';
+                
+                const nipHtml = (nipKepsekDyn && nipKepsekDyn.trim() !== '' && nipKepsekDyn.trim() !== '-') 
+                    ? `<p style="margin-top: 2px; font-weight: normal;">NIP. ${nipKepsekDyn}</p>` 
+                    : '';
+
+                const pageBreakStyle = index < targetSiswa.length - 1 ? 'page-break-after: always; break-after: page;' : '';
+
+                const tasmiSiswa = (DB.tasmi||[]).filter(t => t.id_siswa === sis.id);
+                let tasmiHtml = '';
+                for (let col = 0; col < 3; col++) {
+                    tasmiHtml += `<table style="flex: 1; border-collapse: collapse; border: 1px solid #000; font-size: 10px; text-align: center; color: #000;">
+                        <tr style="background: #e5e7eb;">
+                            <th style="border: 1px solid #000; padding: 4px; font-weight: bold;">Juz</th>
+                            <th style="border: 1px solid #000; padding: 4px; font-weight: bold;">Nilai</th>
+                            <th style="border: 1px solid #000; padding: 4px; font-weight: bold;">Status</th>
+                        </tr>`;
+                    for (let j = 1; j <= 10; j++) {
+                        let juzNum = col * 10 + j;
+                        let tData = tasmiSiswa.find(t => parseInt(t.juz) === juzNum);
+                        let rata = tData ? tData.rata_rata : '-';
+                        let status = tData ? tData.status : 'Belum';
+                        let statusColor = '';
+                        
+                        if (status === 'Lulus') statusColor = 'color: #10b981; font-weight: bold;';
+                        else if (status === 'Sedang Ujian') { status = 'Sedang'; statusColor = 'color: #f59e0b; font-weight: bold;'; }
+                        else if (status === 'Belum Lulus') { status = 'Gagal'; statusColor = 'color: #ef4444; font-weight: bold;'; }
+                        else statusColor = 'color: #9ca3af;';
+
+                        tasmiHtml += `<tr>
+                            <td style="border: 1px solid #000; padding: 4px; font-weight: bold; background: #f9fafb;">${juzNum}</td>
+                            <td style="border: 1px solid #000; padding: 4px;">${rata}</td>
+                            <td style="border: 1px solid #000; padding: 4px; ${statusColor}">${status}</td>
+                        </tr>`;
+                    }
+                    tasmiHtml += `</table>`;
+                }
+
+                finalHtml += `
+                    <div style="width: 215mm; padding: 15mm 20mm 10mm 20mm; box-sizing: border-box; position: relative; overflow: hidden; ${pageBreakStyle}">
+                        <div style="display: flex; align-items: center; border-bottom: 3px double #000; padding-bottom: 10px; margin-bottom: 20px;">
+                            <div style="width: 80px; flex-shrink: 0;">
+                                ${urlLogo ? `<img src="${urlLogo}" style="max-width: 100%; max-height: 80px; object-fit: contain;">` : ''}
+                            </div>
+                            <div style="flex-grow: 1; text-align: center; padding-right: ${urlLogo ? '80px' : '0'};">
+                                <h1 style="font-size: 26px; font-weight: bold; text-transform: uppercase; margin: 0; color: #000;">${namaSekolahDyn}</h1>
+                                <p style="margin: 3px 0; color: #000; font-weight: 600; font-size: 10px;">${getSetting('alamat')}</p>
+                                <h2 style="font-size: 16px; font-weight: bold; margin-top: 10px; text-transform: uppercase; color: #000;">Laporan Rincian Setoran TTQ</h2>
+                                <p style="font-size: 11px; color: #000; font-weight: bold; margin-top: 4px;">Periode: ${fW === 'bulan_ini' ? 'Bulan Ini' : 'Keseluruhan Waktu'}</p>
+                            </div>
+                        </div>
+                        <table style="width: 100%; margin-bottom: 20px; color: #000; font-size: 11px;">
+                            <tr>
+                                <td style="width: 15%; font-weight: bold;">Nama</td><td style="width: 35%; font-weight: 600;">: ${sis.nama_lengkap || 'Siswa Dihapus'}</td>
+                                <td style="width: 15%; font-weight: bold;">Kelas</td><td style="font-weight: 600;">: ${getNamaKelas(sis.id_kelas)}</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight: bold;">TTL</td><td style="font-weight: 600;">: ${sis.tmp_lahir}, ${sis.tgl_lahir}</td>
+                                <td style="font-weight: bold;">Wali Kelas</td><td style="font-weight: 600;">: ${waliKelasName}</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight: bold;">Halaqoh</td><td style="font-weight: 600;">: ${getNamaHalaqoh(sis.id_halaqoh)}</td>
+                                <td style="font-weight: bold;">Guru Halaqoh</td><td style="font-weight: 600;">: ${guruHalaqohName}</td>
+                            </tr>
+                        </table>
+
+                        <div style="margin-bottom: 15px;">
+                            <h3 style="font-size: 12px; font-weight: bold; margin-bottom: 6px; text-transform: uppercase; color: #000; border-bottom: 1px solid #000; padding-bottom: 4px;">Rincian Ujian Tasmi (Juz 1 - 30)</h3>
+                            <div style="display: flex; gap: 8px;">
+                                ${tasmiHtml}
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 15px; text-align: center; color: #000;">
+                            <div style="border: 1px solid #000; padding: 8px; border-radius: 5px;"><div style="font-size: 10px; font-weight: bold;">ZIYADAH</div><div style="font-weight: 600; margin-top: 4px;">${zC} Setoran</div><div style="font-weight: bold; font-size: 14px;">${zH} Hal</div></div>
+                            <div style="border: 1px solid #000; padding: 8px; border-radius: 5px;"><div style="font-size: 10px; font-weight: bold;">MUROJAAH</div><div style="font-weight: 600; margin-top: 4px;">${mC} Setoran</div><div style="font-weight: bold; font-size: 14px;">${mH} Hal</div></div>
+                            <div style="border: 1px solid #000; padding: 8px; border-radius: 5px;"><div style="font-size: 10px; font-weight: bold;">TAHSIN</div><div style="font-weight: 600; margin-top: 4px;">${tC} Setoran</div><div style="font-weight: bold; font-size: 14px;">${tH} Hal</div></div>
+                            <div style="border: 1px solid #000; padding: 8px; border-radius: 5px; background: #f3f4f6;"><div style="font-size: 10px; font-weight: bold;">TOTAL KESELURUHAN</div><div style="font-size: 16px; font-weight: bold; margin-top: 6px;">${ttH} Hal</div></div>
+                        </div>
+                        <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; font-size: 11px; text-align: center; color: #000;">
+                            <tr style="background: #e5e7eb;">
+                                <th style="border: 1px solid #000; padding: 8px; width: 30px; font-weight: bold;">No</th>
+                                <th style="border: 1px solid #000; padding: 8px; width: 80px; font-weight: bold;">Tanggal</th>
+                                <th style="border: 1px solid #000; padding: 8px; width: 100px; font-weight: bold;">Kategori</th>
+                                <th style="border: 1px solid #000; padding: 8px; font-weight: bold;">Detail Materi</th>
+                                <th style="border: 1px solid #000; padding: 8px; width: 60px; font-weight: bold;">Nilai</th>
+                            </tr>
+                            ${dRS.map((d,i) => { 
+                                let m = ''; 
+                                try { 
+                                    const dt=JSON.parse(d.detail_materi); 
+                                    if (d.kategori.includes('Ali')) { m = `${dt.jilid} Hal ${dt.hal_awal}-${dt.hal_akhir}`; } 
+                                    else if (d.kategori.includes('Tahsin')) { m = dt.juz ? `Juz ${dt.juz}` : '-'; } 
+                                    else { m = dt.juz ? `Juz ${dt.juz}, ${dt.surat} (Ayat ${dt.ayat_awal}-${dt.ayat_akhir})` : `${dt.jilid}`; }
+                                } catch(e){} 
+                                return `<tr>
+                                    <td style="border: 1px solid #000; padding: 6px; font-weight: 500;">${i+1}</td>
+                                    <td style="border: 1px solid #000; padding: 6px; font-weight: 500;">${d.tgl.split('-').reverse().join('-')}</td>
+                                    <td style="border: 1px solid #000; padding: 6px; font-weight: 500;">${d.kategori}</td>
+                                    <td style="border: 1px solid #000; padding: 6px; text-align: left; font-weight: 500;">${m}</td>
+                                    <td style="border: 1px solid #000; padding: 6px; font-weight: bold;">${d.predikat.split(' ')[0]}</td>
+                                </tr>`; 
+                            }).join('')}
+                            ${dRS.length === 0 ? `<tr><td colspan="5" style="border: 1px solid #000; padding: 10px; font-weight: bold;">Belum ada data setoran untuk periode ini.</td></tr>` : ''}
+                        </table>
+                        
+                        <div style="margin-top: 30px; display: flex; justify-content: space-between; text-align: center; font-size: 11px; color: #000; padding: 0 20px;">
+                            <div style="width: 35%;">
+                                <p style="margin-bottom: 60px; font-weight: 600;">Wali Kelas,</p>
+                                <p style="font-weight: bold; text-decoration: underline;">${waliKelasName}</p>
+                            </div>
+                            <div style="width: 35%;">
+                                <p style="margin-bottom: 60px; font-weight: 600;">Guru Halaqoh,</p>
+                                <p style="font-weight: bold; text-decoration: underline;">${guruHalaqohName}</p>
+                            </div>
+                        </div>
+                        <div style="margin-top: 15px; text-align: center; font-size: 11px; color: #000;">
+                            <p style="margin-bottom: 5px; font-weight: 600;">${getSetting('lokasi_cetak')}, ${getSetting('tgl_cetak')}</p>
+                            <p style="margin-bottom: 60px; font-weight: 600;">Kepala Sekolah,</p>
+                            <p style="font-weight: bold; text-decoration: underline; margin-bottom: 0;">${namaKepsekDyn}</p>
+                            ${nipHtml}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            finalHtml += `</div>
+            <div class="mt-8 text-center no-print">
+                <button onclick="cetakPDFRapor('${idVal === 'semua' ? 'Massal' : 'Individu'}')" class="bg-emerald-600 text-white px-8 py-3 rounded shadow-lg font-bold"><i class="fas fa-file-pdf mr-2"></i> Export PDF Rapor (${idVal === 'semua' ? 'Massal' : 'Individu'})</button>
+            </div>`;
+
+            const c = document.getElementById('raporContainer'); 
+            if(c) { c.innerHTML = finalHtml; c.classList.remove('hidden'); }
+        }
+
+        // ============================================================================
+        // LAPORAN REKAP CAPAIAN (Guru & Walas & Ortu)
+        // ============================================================================
+        function renderLaporanCapaian() {
+            if (currentRole === 'guru' && !hasLaporanAccess()) {
+                document.getElementById('contentArea').innerHTML = `<div class="p-8 text-center text-red-500 font-bold bg-white rounded-xl shadow">Akses Ditolak. Menu ini khusus Wali Kelas dan Guru Halaqoh.</div>`; 
+                return; 
+            }
+
+            let fH = '';
+            if (currentRole === 'ortu') {
+                fH = `<select id="cap_s" class="w-full md:w-auto border p-2 rounded bg-gray-50"><option value="">-- Pilih Anak --</option><option value="semua">Semua Anak Saya</option>${(currentUser.anak||[]).filter(isSiswaAktif).map(a => `<option value="${a.id}">${a.nama_lengkap}</option>`).join('')}</select>`;
+            } else {
+                const optUnit = getAvailableUnits().map(u=>`<option value="${u.id}">${u.nama_unit}</option>`).join('');
+                
+                const accSiswa = getAccessibleStudents();
+                const accHalIds = [...new Set(accSiswa.flatMap(s => [s.id_halaqoh, s.id_halaqoh_asrama]).filter(Boolean))];
+
+                const halList = (DB.halaqoh||[]).filter(h => accHalIds.includes(h.id));
+                const optHalSekolah = halList.filter(h=>h.kategori_halaqoh !== 'Asrama').map(h=>`<option value="${h.id}">${h.nama_halaqoh}</option>`).join('');
+                const optHalAsrama = halList.filter(h=>h.kategori_halaqoh === 'Asrama').map(h=>`<option value="${h.id}">${h.nama_halaqoh}</option>`).join('');
+                
+                let optHalaqoh = '';
+                if(optHalSekolah) optHalaqoh += `<optgroup label="🏫 Reguler">${optHalSekolah}</optgroup>`;
+                if(optHalAsrama) optHalaqoh += `<optgroup label="🏡 Asrama">${optHalAsrama}</optgroup>`;
+
+                fH = `<select id="cap_u" class="w-full md:w-auto border p-2 rounded" onchange="document.getElementById('cap_k').innerHTML = buildKelasOptions(this.value, '-- Pilih Kelas --'); loadSiswaCap()"><option value="">-- Pilih Unit --</option>${optUnit}</select>
+                      <select id="cap_k" class="w-full md:w-auto border p-2 rounded" onchange="loadSiswaCap()">${buildKelasOptions('', '-- Pilih Kelas --')}</select>
+                      <select id="cap_h" class="w-full md:w-auto border p-2 rounded" onchange="loadSiswaCap()"><option value="">-- Pilih Halaqoh --</option>${optHalaqoh}</select>
+                      <select id="cap_s" class="w-full md:w-auto border p-2 rounded bg-gray-50"><option value="">-- Pilih Siswa --</option></select>`;
+            }
+            
+            document.getElementById('contentArea').innerHTML = `<div class="bg-white rounded-xl shadow-sm border p-5 mb-4 no-print"><h2 class="text-lg font-bold mb-4">Cetak Laporan Rekap Capaian</h2><div class="flex flex-wrap gap-2 mb-4">${fH}<select id="cap_p" class="w-full md:w-auto border p-2 rounded"><option value="semua">Semua Waktu</option><option value="bulan_ini">Bulan Ini</option></select><button onclick="generateRaporCapaian()" class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded shadow font-bold transition"><i class="fas fa-search"></i> Tampilkan Rekap</button></div></div><div id="raporCapaianContainer" class="hidden"></div>`;
+            
+            if(currentRole !== 'ortu') loadSiswaCap();
+        }
+
+        function loadSiswaCap() { 
+            if (currentRole === 'ortu') return;
+            const uId = document.getElementById('cap_u')?.value;
+            const kId = document.getElementById('cap_k')?.value; 
+            const hId = document.getElementById('cap_h')?.value; 
+            const sel = document.getElementById('cap_s'); 
+            
+            let filteredSiswa = getAccessibleStudents().filter(isSiswaAktif);
+            if (uId) filteredSiswa = filteredSiswa.filter(s => maps.kelas[s.id_kelas]?.id_unit === uId);
+            if (kId) filteredSiswa = filteredSiswa.filter(s => s.id_kelas === kId);
+            if (hId) filteredSiswa = filteredSiswa.filter(s => s.id_halaqoh === hId || s.id_halaqoh_asrama === hId);
+
+            sel.innerHTML = '<option value="">-- Pilih Siswa --</option>'; 
+            if (uId || kId || hId) {
+                if(filteredSiswa.length > 0) {
+                    sel.innerHTML += '<option value="semua" class="font-bold text-blue-700">-- Cetak Semua Sesuai Filter --</option>';
+                }
+                filteredSiswa.forEach(s => {
+                    sel.innerHTML += `<option value="${s.id}">${s.nama_lengkap}</option>`;
+                });
+                sel.classList.remove('bg-gray-50'); 
+            } else {
+                sel.classList.add('bg-gray-50'); 
+            }
+            document.getElementById('raporCapaianContainer').classList.add('hidden');
+        }
+
+        function generateRaporCapaian() {
+            const idVal = document.getElementById('cap_s').value; 
+            const fW = document.getElementById('cap_p').value;
+            
+            if(!idVal) return Swal.fire('Oops','Silakan pilih filter (Kelas/Unit/Halaqoh) kemudian pilih siswa atau opsi cetak semua','warning');
+            
+            let targetSiswa = [];
+            if (idVal === 'semua') {
+                if (currentRole === 'ortu') {
+                    targetSiswa = (currentUser.anak||[]).filter(isSiswaAktif);
+                } else {
+                    const uId = document.getElementById('cap_u')?.value;
+                    const kId = document.getElementById('cap_k')?.value;
+                    const hId = document.getElementById('cap_h')?.value;
+                    
+                    targetSiswa = getAccessibleStudents().filter(isSiswaAktif);
+                    if(uId) targetSiswa = targetSiswa.filter(s => maps.kelas[s.id_kelas]?.id_unit === uId);
+                    if(kId) targetSiswa = targetSiswa.filter(s => s.id_kelas === kId);
+                    if(hId) targetSiswa = targetSiswa.filter(s => s.id_halaqoh === hId || s.id_halaqoh_asrama === hId);
+                }
+            } else {
+                targetSiswa = [getSiswaObj(idVal)].filter(s => currentRole === 'ortu' || canGuruAccessLaporanSiswa(s.id));
+            }
+
+            if(targetSiswa.length === 0) return Swal.fire('Oops','Tidak ada data siswa yang ditemukan / Anda tidak memiliki akses untuk siswa tersebut','warning');
+            if(targetSiswa.length > 40) return Swal.fire('Data Terlalu Besar', 'Maksimal cetak massal adalah 40 siswa per sesi agar PDF tidak blank. Silakan pilih spesifik per Kelas atau per Halaqoh.', 'warning');
+
+            let finalHtml = `<div class="canvas-cetak" id="canvasCetakCapaian">`;
+            const urlLogo = getSetting('url_logo');
+
+            targetSiswa.forEach((sis, index) => {
+                let dRS = filterByWaktu((DB.setoran||[]).filter(s => s.id_siswa === sis.id), fW, 'tgl');
+                
+                let rekapData = {};
+                let totalSetoranAll = 0;
+                let totalHalamanAll = 0;
+                let zC = 0, zH = 0, mC = 0, mH = 0, tC = 0, tH = 0;
+
+                dRS.forEach(d => { 
+                    const h = parseFloat(d.jml_halaman||0); 
+                    if (!rekapData[d.kategori]) {
+                        rekapData[d.kategori] = { count: 0, hal: 0 };
+                    }
+                    rekapData[d.kategori].count++;
+                    rekapData[d.kategori].hal += h;
+
+                    totalSetoranAll++;
+                    totalHalamanAll += h;
+                    
+                    if(d.kategori === 'Ziyadah') { zC++; zH += h; } 
+                    else if(d.kategori === 'Murojaah') { mC++; mH += h; } 
+                    else if(d.kategori.includes('Tahsin')) { tC++; tH += h; }
+                });
+                
+                const tasmiSiswa = (DB.tasmi||[]).filter(t => t.id_siswa === sis.id);
+                let lulusCount = 0;
+                let sedangCount = 0;
+                tasmiSiswa.forEach(t => {
+                    if (t.status === 'Lulus') lulusCount++;
+                    else if (t.status === 'Sedang Ujian') sedangCount++;
+                });
+
+                const waliKelasName = getWaliKelas(sis.id_kelas);
+                const halaqohObj = (DB.halaqoh||[]).find(h => h.id === sis.id_halaqoh);
+                const guruHalaqohName = halaqohObj ? getNamaGuru(halaqohObj.id_guru_utama) : '-';
+
+                const kelasObj = maps.kelas[sis.id_kelas];
+                const unitObj = kelasObj ? maps.unit[kelasObj.id_unit] : null;
+                
+                const namaSekolahDyn = (unitObj && unitObj.nama_sekolah_unit) ? unitObj.nama_sekolah_unit : (getSetting('nama_sekolah') || '-');
+                const namaKepsekDyn = (unitObj && unitObj.nama_kepsek) ? unitObj.nama_kepsek : '-';
+                const nipKepsekDyn = (unitObj && unitObj.nip_kepsek) ? unitObj.nip_kepsek : '';
+                
+                const nipHtml = (nipKepsekDyn && nipKepsekDyn.trim() !== '' && nipKepsekDyn.trim() !== '-') 
+                    ? `<p style="margin-top: 2px; font-weight: normal;">NIP. ${nipKepsekDyn}</p>` 
+                    : '';
+
+                const pageBreakStyle = index < targetSiswa.length - 1 ? 'page-break-after: always; break-after: page;' : '';
+
+                let capaianHtml = `<table style="width: 100%; border-collapse: collapse; border: 1px solid #000; font-size: 11px; text-align: center; color: #000;">
+                    <tr style="background: #e5e7eb;">
+                        <th style="border: 1px solid #000; padding: 6px; text-align: left; font-weight: bold;">Kategori Setoran</th>
+                        <th style="border: 1px solid #000; padding: 6px; width: 60px; font-weight: bold;">Setoran</th>
+                        <th style="border: 1px solid #000; padding: 6px; width: 80px; font-weight: bold;">Halaman</th>
+                    </tr>`;
+                let rowNum = 1;
+                for (let kat in rekapData) {
+                    capaianHtml += `<tr>
+                        <td style="border: 1px solid #000; padding: 6px; text-align: left; font-weight: bold;">${kat}</td>
+                        <td style="border: 1px solid #000; padding: 6px; font-weight: 500;">${rekapData[kat].count}x</td>
+                        <td style="border: 1px solid #000; padding: 6px; font-weight: bold;">${rekapData[kat].hal} Hal</td>
+                    </tr>`;
+                    rowNum++;
+                }
+                if (rowNum === 1) {
+                    capaianHtml += `<tr><td colspan="3" style="border: 1px solid #000; padding: 15px; font-weight: bold; color: #666;">Belum ada data setoran.</td></tr>`;
+                } else {
+                    capaianHtml += `<tr style="background: #f9fafb;">
+                        <th style="border: 1px solid #000; padding: 6px; text-align: right; font-weight: bold;">TOTAL</th>
+                        <th style="border: 1px solid #000; padding: 6px; font-weight: bold;">${totalSetoranAll}x</th>
+                        <th style="border: 1px solid #000; padding: 6px; font-size: 12px; font-weight: bold;">${totalHalamanAll} Hal</th>
+                    </tr>`;
+                }
+                capaianHtml += `</table>`;
+
+                let tasmiHtml = '';
+                for (let col = 0; col < 3; col++) {
+                    tasmiHtml += `<table style="flex: 1; border-collapse: collapse; border: 1px solid #000; font-size: 10px; text-align: center; color: #000;">
+                        <tr style="background: #e5e7eb;">
+                            <th style="border: 1px solid #000; padding: 4px; font-weight: bold;">Juz</th>
+                            <th style="border: 1px solid #000; padding: 4px; font-weight: bold;">Nilai</th>
+                            <th style="border: 1px solid #000; padding: 4px; font-weight: bold;">Status</th>
+                        </tr>`;
+                    for (let j = 1; j <= 10; j++) {
+                        let juzNum = col * 10 + j;
+                        let tData = tasmiSiswa.find(t => parseInt(t.juz) === juzNum);
+                        let rata = tData ? tData.rata_rata : '-';
+                        let status = tData ? tData.status : 'Belum';
+                        let statusColor = '';
+                        
+                        if (status === 'Lulus') statusColor = 'color: #10b981; font-weight: bold;';
+                        else if (status === 'Sedang Ujian') { status = 'Sedang'; statusColor = 'color: #f59e0b; font-weight: bold;'; }
+                        else if (status === 'Belum Lulus') { status = 'Gagal'; statusColor = 'color: #ef4444; font-weight: bold;'; }
+                        else statusColor = 'color: #9ca3af;';
+
+                        tasmiHtml += `<tr>
+                            <td style="border: 1px solid #000; padding: 4px; font-weight: bold; background: #f9fafb;">${juzNum}</td>
+                            <td style="border: 1px solid #000; padding: 4px;">${rata}</td>
+                            <td style="border: 1px solid #000; padding: 4px; ${statusColor}">${status}</td>
+                        </tr>`;
+                    }
+                    tasmiHtml += `</table>`;
+                }
+
+                finalHtml += `
+                    <div style="width: 215mm; padding: 15mm 20mm 10mm 20mm; box-sizing: border-box; position: relative; overflow: hidden; ${pageBreakStyle}">
+                        <div style="display: flex; align-items: center; border-bottom: 3px double #000; padding-bottom: 10px; margin-bottom: 20px;">
+                            <div style="width: 80px; flex-shrink: 0;">
+                                ${urlLogo ? `<img src="${urlLogo}" style="max-width: 100%; max-height: 80px; object-fit: contain;">` : ''}
+                            </div>
+                            <div style="flex-grow: 1; text-align: center; padding-right: ${urlLogo ? '80px' : '0'};">
+                                <h1 style="font-size: 26px; font-weight: bold; text-transform: uppercase; margin: 0; color: #000;">${namaSekolahDyn}</h1>
+                                <p style="margin: 3px 0; color: #000; font-weight: 600; font-size: 10px;">${getSetting('alamat')}</p>
+                                <h2 style="font-size: 16px; font-weight: bold; margin-top: 10px; text-transform: uppercase; color: #000;">Laporan Rekapitulasi Capaian TTQ</h2>
+                                <p style="font-size: 11px; color: #000; font-weight: bold; margin-top: 4px;">Periode: ${fW === 'bulan_ini' ? 'Bulan Ini' : 'Keseluruhan Waktu'}</p>
+                            </div>
+                        </div>
+                        <table style="width: 100%; margin-bottom: 20px; color: #000; font-size: 12px;">
+                            <tr>
+                                <td style="width: 15%; font-weight: bold; padding-bottom: 4px;">Nama</td><td style="width: 35%; font-weight: 600; padding-bottom: 4px;">: ${sis.nama_lengkap || 'Siswa Dihapus'}</td>
+                                <td style="width: 15%; font-weight: bold; padding-bottom: 4px;">Kelas</td><td style="font-weight: 600; padding-bottom: 4px;">: ${getNamaKelas(sis.id_kelas)}</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight: bold; padding-bottom: 4px;">TTL</td><td style="font-weight: 600; padding-bottom: 4px;">: ${sis.tmp_lahir}, ${sis.tgl_lahir}</td>
+                                <td style="font-weight: bold; padding-bottom: 4px;">Wali Kelas</td><td style="font-weight: 600; padding-bottom: 4px;">: ${waliKelasName}</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight: bold;">Halaqoh</td><td style="font-weight: 600;">: ${getNamaHalaqoh(sis.id_halaqoh)}</td>
+                                <td style="font-weight: bold;">Guru Halaqoh</td><td style="font-weight: 600;">: ${guruHalaqohName}</td>
+                            </tr>
+                        </table>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; text-align: center; color: #000;">
+                            <div style="border: 1px solid #000; padding: 8px; border-radius: 5px;"><div style="font-size: 10px; font-weight: bold;">ZIYADAH</div><div style="font-weight: 600; margin-top: 4px;">${zC} Setoran</div><div style="font-weight: bold; font-size: 14px;">${zH} Hal</div></div>
+                            <div style="border: 1px solid #000; padding: 8px; border-radius: 5px;"><div style="font-size: 10px; font-weight: bold;">MUROJAAH</div><div style="font-weight: 600; margin-top: 4px;">${mC} Setoran</div><div style="font-weight: bold; font-size: 14px;">${mH} Hal</div></div>
+                            <div style="border: 1px solid #000; padding: 8px; border-radius: 5px;"><div style="font-size: 10px; font-weight: bold;">TAHSIN</div><div style="font-weight: 600; margin-top: 4px;">${tC} Setoran</div><div style="font-weight: bold; font-size: 14px;">${tH} Hal</div></div>
+                            <div style="border: 1px solid #000; padding: 8px; border-radius: 5px; background: #f3f4f6;"><div style="font-size: 10px; font-weight: bold;">TOTAL KESELURUHAN</div><div style="font-weight: 600; margin-top: 4px;">${totalSetoranAll} Setoran</div><div style="font-weight: bold; font-size: 14px;">${totalHalamanAll} Hal</div></div>
+                        </div>
+
+                        <div style="display: flex; gap: 20px; align-items: flex-start;">
+                            <div style="width: 35%;">
+                                <h3 style="font-size: 13px; font-weight: bold; margin-bottom: 8px; text-transform: uppercase; color: #000; border-bottom: 1px solid #000; padding-bottom: 4px;">Rekap ZM & Tahsin</h3>
+                                ${capaianHtml}
+                                
+                                <div style="margin-top: 15px; border: 1px solid #000; border-radius: 5px; overflow: hidden; font-size: 11px; text-align: center;">
+                                    <div style="background: #e5e7eb; padding: 6px; font-weight: bold; border-bottom: 1px solid #000;">RINGKASAN TASMI</div>
+                                    <div style="display: flex;">
+                                        <div style="flex: 1; padding: 8px; border-right: 1px solid #000;">
+                                            <div style="font-weight: bold; color: #10b981; font-size: 16px;">${lulusCount}</div>
+                                            <div style="font-size: 9px; margin-top: 2px;">JUZ LULUS</div>
+                                        </div>
+                                        <div style="flex: 1; padding: 8px;">
+                                            <div style="font-weight: bold; color: #f59e0b; font-size: 16px;">${sedangCount}</div>
+                                            <div style="font-size: 9px; margin-top: 2px;">SEDANG UJIAN</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="width: 65%;">
+                                <h3 style="font-size: 13px; font-weight: bold; margin-bottom: 8px; text-transform: uppercase; color: #000; border-bottom: 1px solid #000; padding-bottom: 4px;">Rincian Ujian Tasmi (Juz 1 - 30)</h3>
+                                <div style="display: flex; gap: 8px;">
+                                    ${tasmiHtml}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top: 25px; display: flex; justify-content: space-between; text-align: center; font-size: 12px; color: #000; padding: 0 30px;">
+                            <div style="width: 40%;">
+                                <p style="margin-bottom: 70px; font-weight: 600;">Wali Kelas,</p>
+                                <p style="font-weight: bold; text-decoration: underline;">${waliKelasName}</p>
+                            </div>
+                            <div style="width: 40%;">
+                                <p style="margin-bottom: 70px; font-weight: 600;">Guru Halaqoh,</p>
+                                <p style="font-weight: bold; text-decoration: underline;">${guruHalaqohName}</p>
+                            </div>
+                        </div>
+                        <div style="margin-top: 15px; text-align: center; font-size: 12px; color: #000;">
+                            <p style="margin-bottom: 5px; font-weight: 600;">${getSetting('lokasi_cetak')}, ${getSetting('tgl_cetak')}</p>
+                            <p style="margin-bottom: 70px; font-weight: 600;">Kepala Sekolah,</p>
+                            <p style="font-weight: bold; text-decoration: underline; margin-bottom: 0;">${namaKepsekDyn}</p>
+                            ${nipHtml}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            finalHtml += `</div>
+            <div class="mt-8 text-center no-print">
+                <button onclick="cetakPDFRaporCapaian('${idVal === 'semua' ? 'Massal' : 'Individu'}')" class="bg-blue-600 hover:bg-blue-700 transition text-white px-8 py-3 rounded shadow-lg font-bold"><i class="fas fa-file-pdf mr-2"></i> Export PDF Rekap (${idVal === 'semua' ? 'Massal' : 'Individu'})</button>
+            </div>`;
+
+            const c = document.getElementById('raporCapaianContainer'); 
+            if(c) { c.innerHTML = finalHtml; c.classList.remove('hidden'); }
+        }
+
+        function cetakPDFRaporCapaian(tipe = 'Individu') {
+            const el = document.getElementById('canvasCetakCapaian');
+            const scaleValue = tipe === 'Massal' ? 1.5 : 2; 
+
+            const opt = {
+                margin: 0,
+                filename: `Rekap_Capaian_${tipe}_F4.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: scaleValue, useCORS: true, letterRendering: true, backgroundColor: '#ffffff', scrollY: 0 },
+                jsPDF: { unit: 'mm', format: [215, 330], orientation: 'portrait' },
+                pagebreak: { mode: 'css', avoid: 'tr' } 
+            };
+            showLoading(`Mencetak PDF Rekap ${tipe}... Mohon tunggu.`);
+            html2pdf().set(opt).from(el).save().then(() => hideLoading());
+        }
+
+        function exportExcel(tableId, fileName) {
+            const table = document.getElementById(tableId);
+            if (!table) return Swal.fire('Oops', 'Tabel tidak ditemukan', 'warning');
+            
+            showLoading("Memproses Excel...");
+            setTimeout(() => {
+                const wb = XLSX.utils.table_to_book(table, {sheet: "Laporan"});
+                XLSX.writeFile(wb, `${fileName}_${new Date().toISOString().split('T')[0]}.xlsx`);
+                hideLoading();
+            }, 300);
+        }
+
+        // ============================================================================
+        // LAPORAN SETORAN (GABUNGAN ZM & TAHSIN)
+        // ============================================================================
+        function renderLaporanSetoran() {
+            document.getElementById('contentArea').innerHTML = `
+            <div class="bg-white p-5 border rounded-xl shadow-sm">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold text-emerald-800"><i class="fas fa-book-open"></i> Laporan Seluruh Setoran</h2>
+                    <button onclick="exportExcel('tableLaporanSetoran', 'Laporan_Setoran')" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-bold shadow transition"><i class="fas fa-file-excel mr-1"></i> Export Excel</button>
+                </div>
+                <div class="flex flex-wrap gap-2 mb-4 bg-gray-50 p-4 rounded-lg border">
+                    <select id="fWS" class="border rounded p-2 text-sm outline-none focus:ring focus:ring-emerald-200" onchange="renderTableLaporanSetoran()">
+                        <option value="semua">Semua Waktu</option><option value="bulan_ini">Bulan Ini</option><option value="hari_ini">Hari Ini</option>
+                    </select>
+                    <select id="fUS" class="border rounded p-2 text-sm outline-none focus:ring focus:ring-emerald-200" onchange="document.getElementById('fKS').innerHTML = buildKelasOptions(this.value, 'Semua Kelas'); loadSiswaFilterLS(); renderTableLaporanSetoran()">
+                        <option value="">Semua Unit</option>${getAvailableUnits().map(u=>`<option value="${u.id}">${u.nama_unit}</option>`).join('')}
+                    </select>
+                    <select id="fKS" class="border rounded p-2 text-sm outline-none focus:ring focus:ring-emerald-200" onchange="loadSiswaFilterLS(); renderTableLaporanSetoran()">
+                        ${buildKelasOptions('', 'Semua Kelas')}
+                    </select>
+                    <select id="fSS" class="border rounded p-2 text-sm bg-gray-50 outline-none focus:ring focus:ring-emerald-200" onchange="renderTableLaporanSetoran()">
+                        <option value="">Semua Siswa</option>
+                    </select>
+                    <select id="fKatS" class="border rounded p-2 text-sm font-semibold text-emerald-700 outline-none focus:ring focus:ring-emerald-200" onchange="renderTableLaporanSetoran()">
+                        <option value="semua">Semua Kategori</option>
+                        <option value="Ziyadah">Ziyadah</option>
+                        <option value="Murojaah">Murojaah</option>
+                        <option value="Tahsin Al-Quran">Tahsin Al-Quran</option>
+                        <option value="Tahsin Metode Ali">Tahsin Metode Ali</option>
+                    </select>
+                </div>
+                <div id="lsCont" class="overflow-x-auto"></div>
+            </div>`;
+            
+            loadSiswaFilterLS();
+            renderTableLaporanSetoran();
+        }
+
+        function loadSiswaFilterLS() {
+            const uId = document.getElementById('fUS')?.value;
+            const kId = document.getElementById('fKS').value;
+            const sel = document.getElementById('fSS');
+            
+            let filteredSiswa = (DB.siswa||[]).filter(s => canGuruAccessSiswa(s.id));
+            if (uId) filteredSiswa = filteredSiswa.filter(s => maps.kelas[s.id_kelas]?.id_unit === uId);
+            if (kId) filteredSiswa = filteredSiswa.filter(s => s.id_kelas === kId);
+
+            sel.innerHTML = '<option value="">Semua Siswa</option>'; 
+            filteredSiswa.forEach(s => {
+                const stText = (s.status_siswa && s.status_siswa !== 'Aktif') ? `(${s.status_siswa})` : '';
+                sel.innerHTML += `<option value="${s.id}">${s.nama_lengkap} ${stText}</option>`;
+            });
+            
+            if(uId || kId) sel.classList.remove('bg-gray-50');
+            else sel.classList.add('bg-gray-50');
+        }
+
+        function renderTableLaporanSetoran() {
+            let dta = (DB.setoran||[]).filter(s => canGuruAccessSiswa(s.id_siswa)); 
+            dta = filterByWaktu(dta, document.getElementById('fWS').value, 'tgl'); 
+            
+            const fUnit = document.getElementById('fUS')?.value;
+            const fKelas = document.getElementById('fKS').value;
+            const fSiswa = document.getElementById('fSS').value;
+            const fKat = document.getElementById('fKatS').value;
+            
+            if(fUnit) dta = dta.filter(s => maps.kelas[getSiswaObj(s.id_siswa).id_kelas]?.id_unit === fUnit);
+            if(fKelas) dta = dta.filter(s => getSiswaObj(s.id_siswa).id_kelas === fKelas);
+            if(fSiswa) dta = dta.filter(s => s.id_siswa === fSiswa);
+            if(fKat !== 'semua') dta = dta.filter(s => s.kategori === fKat);
+            
+            let h = `<table id="tableLaporanSetoran" class="dt-table text-sm whitespace-nowrap">
+                <thead><tr><th>Tanggal</th><th>Siswa (Kelas)</th><th>Kategori</th><th>Materi</th><th>Jumlah Halaman</th><th>Predikat</th></tr></thead><tbody>`;
+            
+            dta.forEach(d => { 
+                const sis = getSiswaObj(d.id_siswa); 
+                let m = ''; 
+                try { 
+                    const dt = JSON.parse(d.detail_materi); 
+                    if (d.kategori.includes('Ali')) { m = `${dt.jilid} Hal ${dt.hal_awal}-${dt.hal_akhir}`; } 
+                    else if (d.kategori.includes('Tahsin')) { m = dt.juz ? `Juz ${dt.juz}` : '-'; } 
+                    else { m = dt.juz ? `Juz ${dt.juz}, ${dt.surat} (Ayat ${dt.ayat_awal}-${dt.ayat_akhir})` : `${dt.jilid}`; }
+                } catch(e) {} 
+                
+                let katBadge = d.kategori === 'Ziyadah' ? 'bg-blue-100 text-blue-800' : d.kategori === 'Murojaah' ? 'bg-yellow-100 text-yellow-800' : 'bg-purple-100 text-purple-800';
+
+                h += `<tr>
+                    <td>${d.tgl.split('-').reverse().join('-')}</td>
+                    <td><b>${sis.nama_lengkap || 'Siswa Dihapus'}</b> <span class="text-xs text-gray-500 ml-1">(${getNamaKelas(sis.id_kelas)})</span></td>
+                    <td><span class="${katBadge} text-xs px-2 py-0.5 rounded font-medium">${d.kategori}</span></td>
+                    <td class="text-gray-600">${m}</td>
+                    <td>${d.jml_halaman || 0} Hal</td>
+                    <td class="font-bold text-emerald-600">${d.predikat.split(' ')[0]}</td>
+                </tr>`; 
+            });
+            if(dta.length === 0) h += `<tr><td colspan="6" class="text-center py-6 text-gray-500">Tidak ada data setoran yang cocok dengan filter</td></tr>`;
+            document.getElementById('lsCont').innerHTML = h + `</tbody></table>`;
+        }
+
+        function renderLeaderboard() {
+            document.getElementById('contentArea').innerHTML = `<div class="bg-white p-5 border rounded-xl shadow-sm"><div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold text-yellow-600"><i class="fas fa-trophy"></i> Leaderboard Setoran ZM</h2></div>
+            <div class="flex flex-wrap gap-2 mb-4 bg-gray-50 p-3 rounded-lg border">
+                <select id="fWL" class="border rounded p-1.5 text-sm" onchange="renderTableL()"><option value="semua">Semua Waktu</option><option value="bulan_ini">Bulan Ini</option></select>
+                <select id="fUL" class="border rounded p-1.5 text-sm" onchange="document.getElementById('fKL').innerHTML = buildKelasOptions(this.value, 'Semua Kelas'); renderTableL()"><option value="">Semua Unit</option>${getAvailableUnits().map(u=>`<option value="${u.id}">${u.nama_unit}</option>`).join('')}</select>
+                <select id="fKL" class="border rounded p-1.5 text-sm" onchange="renderTableL()">${buildKelasOptions('', 'Semua Kelas')}</select>
+                <select id="fAL" class="border rounded p-1.5 text-sm" onchange="renderTableL()"><option value="semua">Kategori ZM</option><option value="Ziyadah">Ziyadah</option><option value="Murojaah">Murojaah</option></select>
+            </div><div id="ldTable" class="overflow-x-auto"></div></div>`;
+            renderTableL();
+        }
+
+        function renderTableL() {
+            let dataS = (DB.setoran||[]).filter(s => (s.kategori === 'Ziyadah' || s.kategori === 'Murojaah') && isSiswaAktif(getSiswaObj(s.id_siswa)) && canGuruAccessSiswa(s.id_siswa)); 
+            dataS = filterByWaktu(dataS, document.getElementById('fWL').value, 'tgl'); 
+            if(document.getElementById('fAL').value!=='semua') dataS = dataS.filter(s=>s.kategori===document.getElementById('fAL').value);
+            
+            const fUnit = document.getElementById('fUL')?.value;
+            const fKelas = document.getElementById('fKL').value;
+
+            let rMap = {}; 
+            dataS.forEach(s => { 
+                const sis = getSiswaObj(s.id_siswa); 
+                if(fUnit && maps.kelas[sis.id_kelas]?.id_unit !== fUnit) return;
+                if(fKelas && sis.id_kelas !== fKelas) return; 
+                
+                const k = s.id_siswa+'_'+s.kategori; 
+                if(!rMap[k]) rMap[k] = { id_siswa: s.id_siswa, kat: s.kategori, count: 0, hal: 0 }; 
+                rMap[k].count++; rMap[k].hal += parseFloat(s.jml_halaman||0); 
+            });
+            
+            let rArr = Object.values(rMap); rArr.sort((a,b) => b.count - a.count || b.hal - a.hal);
+            let h = `<table class="dt-table text-sm whitespace-nowrap"><thead><tr><th>Rank</th><th>Siswa (Kelas)</th><th>Kategori</th><th>Total Setoran</th><th>Total Halaman</th></tr></thead><tbody>`;
+            rArr.forEach((r,i) => { const sis = getSiswaObj(r.id_siswa); h += `<tr><td class="text-center font-bold">${i+1}</td><td><b>${sis.nama_lengkap || 'Siswa Dihapus'}</b> <span class="text-xs text-gray-500">(${getNamaKelas(sis.id_kelas)})</span></td><td>${r.kat}</td><td class="font-bold text-center">${r.count} Kali</td><td class="text-center">${r.hal} Hal</td></tr>`; });
+            document.getElementById('ldTable').innerHTML = h + `</tbody></table>`;
+        }
+
+        function renderLeaderboardTahsin() {
+            document.getElementById('contentArea').innerHTML = `<div class="bg-white p-5 border rounded-xl shadow-sm"><div class="flex justify-between items-center mb-4"><h2 class="text-lg font-bold text-yellow-600"><i class="fas fa-medal"></i> Leaderboard Tahsin</h2></div>
+            <div class="flex flex-wrap gap-2 mb-4 bg-gray-50 p-3 rounded-lg border">
+                <select id="fWL" class="border rounded p-1.5 text-sm" onchange="renderTableLTahsin()"><option value="semua">Semua Waktu</option><option value="bulan_ini">Bulan Ini</option></select>
+                <select id="fUT" class="border rounded p-1.5 text-sm" onchange="document.getElementById('fKL').innerHTML = buildKelasOptions(this.value, 'Semua Kelas'); renderTableLTahsin()"><option value="">Semua Unit</option>${getAvailableUnits().map(u=>`<option value="${u.id}">${u.nama_unit}</option>`).join('')}</select>
+                <select id="fKL" class="border rounded p-1.5 text-sm" onchange="renderTableLTahsin()">${buildKelasOptions('', 'Semua Kelas')}</select>
+                <select id="fAL" class="border rounded p-1.5 text-sm" onchange="renderTableLTahsin()"><option value="semua">Kategori Tahsin</option><option value="Tahsin Al-Quran">Al-Quran</option><option value="Tahsin Metode Ali">Metode Ali</option></select>
+            </div><div id="ldTTable" class="overflow-x-auto"></div></div>`;
+            renderTableLTahsin();
+        }
+
+        function renderTableLTahsin() {
+            let dataS = (DB.setoran||[]).filter(s => s.kategori.includes('Tahsin') && isSiswaAktif(getSiswaObj(s.id_siswa)) && canGuruAccessSiswa(s.id_siswa)); 
+            dataS = filterByWaktu(dataS, document.getElementById('fWL').value, 'tgl'); 
+            if(document.getElementById('fAL').value!=='semua') dataS = dataS.filter(s=>s.kategori===document.getElementById('fAL').value);
+            
+            const fUnit = document.getElementById('fUT')?.value;
+            const fKelas = document.getElementById('fKL').value;
+
+            let rMap = {}; 
+            dataS.forEach(s => { 
+                const sis = getSiswaObj(s.id_siswa); 
+                if(fUnit && maps.kelas[sis.id_kelas]?.id_unit !== fUnit) return;
+                if(fKelas && sis.id_kelas !== fKelas) return; 
+                
+                const k = s.id_siswa+'_'+s.kategori; 
+                if(!rMap[k]) rMap[k] = { id_siswa: s.id_siswa, kat: s.kategori, count: 0, hal: 0 }; 
+                rMap[k].count++; rMap[k].hal += parseFloat(s.jml_halaman||0); 
+            });
+            
+            let rArr = Object.values(rMap); rArr.sort((a,b) => b.count - a.count || b.hal - a.hal);
+            let h = `<table class="dt-table text-sm whitespace-nowrap"><thead><tr><th>Rank</th><th>Siswa (Kelas)</th><th>Kategori</th><th>Total Setoran</th><th>Total Halaman</th></tr></thead><tbody>`;
+            rArr.forEach((r,i) => { const sis = getSiswaObj(r.id_siswa); h += `<tr><td class="text-center font-bold">${i+1}</td><td><b>${sis.nama_lengkap || 'Siswa Dihapus'}</b> <span class="text-xs text-gray-500">(${getNamaKelas(sis.id_kelas)})</span></td><td>${r.kat}</td><td class="font-bold text-center">${r.count} Kali</td><td class="text-center">${r.hal} Hal</td></tr>`; });
+            document.getElementById('ldTTable').innerHTML = h + `</tbody></table>`;
+        }
+
+        window.onload = async () => { 
+            const cachedDB = localStorage.getItem('tasmi_db');
+            if (cachedDB) {
+                try {
+                    DB = JSON.parse(cachedDB);
+                    if(DB.unit) DB.unit.sort((a,b) => (a.nama_unit || '').localeCompare(b.nama_unit || ''));
+                    if(DB.kelas) DB.kelas.sort((a,b) => (a.nama_kelas || '').localeCompare(b.nama_kelas || ''));
+                    if(DB.halaqoh) DB.halaqoh.sort((a,b) => (a.nama_halaqoh || '').localeCompare(b.nama_halaqoh || ''));
+                    if(DB.guru) DB.guru.sort((a,b) => (a.nama_lengkap || '').localeCompare(b.nama_lengkap || ''));
+
+                    if (!DB.pengaturan) DB.pengaturan = [];
+                    if (!DB.pengaturan.find(p => p.key_setting === 'url_logo')) DB.pengaturan.push({ key_setting: 'url_logo', value_setting: '' });
+                    if (!DB.pengaturan.find(p => p.key_setting === 'nama_aplikasi')) DB.pengaturan.push({ key_setting: 'nama_aplikasi', value_setting: 'e-Tasmi' });
+                    if (!DB.pengaturan.find(p => p.key_setting === 'nama_sistem_login')) DB.pengaturan.push({ key_setting: 'nama_sistem_login', value_setting: 'Sistem Akademik Tahfizh' });
+                    
+                    buildMaps(); applySettingsToUI();
+                } catch(e) {}
+            }
+
+            const savedUser = localStorage.getItem('tasmi_user');
+            const savedRole = localStorage.getItem('tasmi_role');
+            
+            if (savedUser && savedRole) {
+                document.getElementById('loginScreen')?.classList.add('hidden');
+                
+                try {
+                    const parsedUser = JSON.parse(savedUser);
+                    if (!DB.admin || !DB.guru) await initApp(true); 
+                    
+                    let isValid = false;
+                    if (savedRole === 'admin' && (DB.admin||[]).find(x => x.username === parsedUser.username)) isValid = true;
+                    if (savedRole === 'guru' && (DB.guru||[]).find(x => x.no_wa === parsedUser.no_wa)) isValid = true;
+                    if (savedRole === 'ortu') {
+                        const anak = (DB.siswa||[]).filter(s => s.no_wa_ortu === parsedUser.id);
+                        if(anak.length > 0) { parsedUser.anak = anak; isValid = true; }
+                    }
+                    
+                    if (isValid) {
+                        setSession(parsedUser, savedRole); initApp(true);
+                    } else {
+                        logout(); Swal.fire('Sesi Berakhir', 'Data akun tidak ditemukan atau telah diubah.', 'info');
+                    }
+                } catch(e) {
+                    logout();
+                }
+            } else {
+                await initApp();
+            }
+        };
+    </script>
+</body>
+</html>
